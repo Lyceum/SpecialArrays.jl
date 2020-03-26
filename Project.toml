@@ -3,11 +3,23 @@ uuid = "dced3ab1-7816-4ad4-9c7c-956aa26e9cbf"
 authors = ["Colin Summers", "The Contributors of SpecialArrays"]
 version = "0.1.0"
 
+[deps]
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
+LyceumBase = "db31fed1-ca1e-4084-8a49-12fae1996a55"
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
+Shapes = "175de200-b73b-11e9-28b7-9b5b306cec37"
+StaticNumbers = "c5e4b96a-f99f-5557-8ed2-dc63ef9b5131"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+UnsafeArrays = "c4a57d5a-5b31-53a6-b365-19f8c011fbd6"
+
 [compat]
 julia = "1.4"
 
 [extras]
+AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test"]
+test = ["Test", "AxisArrays", "BenchmarkTools", "Random"]
