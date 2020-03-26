@@ -19,6 +19,7 @@ function _check_flatview_parameters(::Type{V}, ::Val{L}, ::Val{M}, ::Type{S}, ::
     if !(L isa Int && M isa Int)
         throw(ArgumentError("FlattenedArray type parameters L and M must be of type Int"))
     end
+    # TODO
     #if L !== M + N
     #    throw(ArgumentError("FlattenedArray type parameters L, M, and N must satisfy: L === M + N"))
     #end
@@ -87,6 +88,13 @@ end
 @inline function _outer_indices(::FlattenedArray{<:Any,L,M}, I::NTuple{L,Any}) where {L,M}
     tail(I, Val(L - M))
 end
+
+####
+#### Misc Interfaces
+####
+
+Base.copy(A::FlattenedArray) = FlattenedArray(deepcopy(A.slices), A.inneraxes)
+
 
 ####
 #### SpecialArrays functions

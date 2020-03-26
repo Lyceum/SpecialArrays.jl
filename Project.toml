@@ -18,8 +18,9 @@ julia = "1.4"
 [extras]
 AxisArrays = "39de3d68-74b9-583c-8d2d-e117c070f3a9"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "AxisArrays", "BenchmarkTools", "Random"]
+test = ["Test", "AxisArrays", "BenchmarkTools", "Random", "Parameters"]

@@ -80,29 +80,16 @@ end
 
 Base.IndexStyle(::Type{<:Slices}) = IndexCartesian()
 
-## TODO always shove inner dims to front?
-#function Base.similar(S::Slices{<:Any,<:Any,M1}, ::Type{<:AbsArr{V,M2}}, dims::Dims) where {M1,V,M2}
-#    M1 == M2 || throw(ArgumentError("ndims(T) must equal ndims(S) or unspecified"))
-#    _similar(S, V, dims)
-#end
-#Base.similar(S::Slices, ::Type{<:AbsArr{V}}, dims::Dims) where {V} = _similar(S, V, dims)
-#function Base.similar(::Slices, ::Type{<:AbsArr}, ::Dims)
-#    throw(ArgumentError("$T has no element type"))
-#end
-#
-#Base.similar(S::Slices, T::Type, dims::Dims) = _similar(S, T, dims)
-#
-#function _similar(S::Slices{<:Any,<:Any,M}, ::Type{V}, dims::Dims{N}) where {M,V,N}
-#    newparent = similar(S.parent, V, innersize(S)..., dims...)
-#    newalongs = (ntuple(_ -> static(true), Val(M))..., ntuple(_ -> static(false), Val(N))...)
-#    Slices(newparent, newalongs)
+#function Base.similar(A::Slices, T::Type{<:AbsArr{V,M}}, dims::Dims{N}) where {M,V,N}
+#    Array{Array{V,M},N}(undef, dims...)
 #end
 
-@inline Base.axes(S::Slices) = static_filter(SFalse(), S.alongs, axes(S.parent))
 
 #####
 ##### Misc
 #####
+
+@inline Base.axes(S::Slices) = static_filter(SFalse(), S.alongs, axes(S.parent))
 
 @inline Base.:(==)(A::Slices, B::Slices) = A.alongs == B.alongs && A.parent == B.parent
 
@@ -111,18 +98,18 @@ Base.IndexStyle(::Type{<:Slices}) = IndexCartesian()
 @inline Base.dataids(S::Slices) = Base.dataids(S.parent)
 
 
-function Base.copyto!(dest::Slices{<:Any,N,M,<:Any,A}, src::Slices{<:Any,N,M,<:Any,A}) where {N,M,A}
-    checkbounds(dest, axes(src)...)
-    if size(dest.parent) == size(src.parent)
-        copyto!(dest.parent, src.parent)
-    else
-        src2 = unalias(dest, src)
-        for I in eachindex(IndexStyle(src2, dest), src2)
-            @inbounds dest[I] = src2[I]
-        end
-    end
-    return dest
-end
+#function Base.copyto!(dest::Slices{<:Any,N,M,<:Any,A}, src::Slices{<:Any,N,M,<:Any,A}) where {N,M,A}
+#    checkbounds(dest, axes(src)...)
+#    if size(dest.parent) == size(src.parent)
+#        copyto!(dest.parent, src.parent)
+#    else
+#        src2 = unalias(dest, src)
+#        for I in eachindex(IndexStyle(src2, dest), src2)
+#            @inbounds dest[I] = src2[I]
+#        end
+#    end
+#    return dest
+#end
 
 Base.copy(S::Slices) = Slices(copy(S.parent), S.alongs)
 

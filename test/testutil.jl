@@ -1,8 +1,10 @@
 testdims(L::Integer) = ntuple(i -> 1 + i, unstatic(L))
 
+
 randlike(x::Number) = rand(typeof(x))
 randlike(A::AbstractArray{<:Number}) = rand(eltype(A), size(A)...)
 randlike(A::AbstractArray{<:Number,0}) = rand!(zeros(eltype(A)))
+
 function randlike(A::AbsArr{<:AbsArr{V,M},N}) where {V,M,N}
     B = Array{Array{V,M},N}(undef, size(A)...)
     for I in eachindex(B)
@@ -10,12 +12,14 @@ function randlike(A::AbsArr{<:AbsArr{V,M},N}) where {V,M,N}
     end
     return B
 end
+
 function randlike!(A::AbsArr{<:AbsArr})
     for I in eachindex(A)
         copyto!(A[I], randlike(A[I]))
     end
     return A
 end
+
 function randlike!(A::AbsArr{<:Number})
     for I in eachindex(A)
         A[I] = randlike(A[I])
@@ -62,7 +66,6 @@ macro test_setindex!(A, I)
     end
 end
 
-
 macro test_getindices(A, Is)
     @qe begin
         $Test.@test $all($Is) do I
@@ -98,7 +101,6 @@ macro test_setindices!(A, Is)
     end
 end
 
-
 macro test_all_equal(A, B, Is)
     @qe begin
         $Test.@test all($Is) do I
@@ -110,6 +112,7 @@ macro test_all_equal(A, B, Is)
         end
     end
 end
+
 
 macro test_copyto!(dest, src)
     @qe begin
@@ -157,7 +160,7 @@ macro test_array_attributes(A)
     end
 end
 
-macro test_similar(A, T)
+macro test_similar(A, T, dims)
     @qe begin
         $TestUtil.@test_inferred $similar($A)
         $Test.@test $eltype($similar($A)) === $eltype($A)
@@ -167,22 +170,18 @@ macro test_similar(A, T)
         $Test.@test $eltype($similar($A, $T)) === $T
         $Test.@test $size($similar($A, $T)) == $size($A)
 
-        $TestUtil.@test_inferred $similar($A, ($size($A)..., 10))
-        $Test.@test eltype($similar($A, ($size($A)..., 10))) === $eltype($A)
-        $Test.@test size($similar($A, ($size($A)..., 10))) == ($size($A)..., 10)
+        $TestUtil.@test_inferred $similar($A, $dims)
+        $Test.@test eltype($similar($A, $dims)) === $eltype($A)
+        $Test.@test size($similar($A, $dims)) == $dims
 
-        $TestUtil.@test_inferred $similar($A, $T, ($size($A)..., 10))
-        $Test.@test eltype($similar($A, $T, ($size($A)..., 10))) === $T
-        $Test.@test size($similar($A, $T, ($size($A)..., 10))) == ($size($A)..., 10)
+        $TestUtil.@test_inferred $similar($A, $T, $dims)
+        $Test.@test eltype($similar($A, $T, $dims)) === $T
+        $Test.@test size($similar($A, $T, $dims)) == $dims
     end
 end
 
 
-function test_indexing_AB(f::Function, B::Array)
-    AB = let f=f, B=B
-        () -> return f(), deepcopy(B)
-    end
-
+function test_indexing_AB(AB::Function)
     @testset "LinearIndices" begin
         let (A, _) = AB()
             @test_getindex A first(LinearIndices(A))
@@ -256,6 +255,7 @@ function test_indexing_AB(f::Function, B::Array)
         end
     end
     @testset "dropped singleton" begin
+        _, B = AB()
         if ndims(B) > 0 && size(B, ndims(B)) == 1
             let (A, _) = AB()
                 @test_getindex A front(Tuple(first(CartesianIndices(A))))
@@ -291,3 +291,33 @@ function test_indexing_AB(f::Function, B::Array)
         @test A[:] == B[:]
     end
 end
+
+function test_array_AB(AB::Function)
+    @testset "array attributes" begin
+        A, _ = AB()
+        @test_array_attributes A
+
+        @test_noalloc eltype($A)
+        @test_noalloc ndims($A)
+        @test_noalloc axes($A)
+        @test_noalloc size($A)
+        @test_noalloc length($A)
+    end
+
+    @testset "indexing" begin
+        test_indexing_AB(AB)
+    end
+
+    @testset "copy/copyto!/equality" begin
+        let (A, B) = AB()
+            @test_copyto! A B
+        end
+        let (A, B) = AB()
+            @test_copyto! B A
+        end
+        let A1 = first(AB()), A2 = first(AB())
+            @test_copyto! A1 A2
+        end
+    end
+end
+
