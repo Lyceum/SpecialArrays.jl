@@ -2,7 +2,7 @@ struct CartesianIndexer{T,N,A<:AbsArr{T,N}} <: AbstractArray{T,N}
     parent::A
 end
 
-@forward CartesianIndexer.parent Base.size, Base.axes, Base.length
+@forward CartesianIndexer.parent Base.size, Base.axes, Base.length, Base.dataids
 
 @propagate_inbounds function Base.getindex(A::CartesianIndexer{<:Any,N}, I::Vararg{Int,N}) where {N}
     getindex(A.parent, I...)

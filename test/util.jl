@@ -292,6 +292,7 @@ function test_indexing_AB(AB::Function)
     end
 end
 
+
 function test_array_AB(AB::Function)
     @testset "array attributes" begin
         A, _ = AB()

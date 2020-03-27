@@ -1,20 +1,21 @@
-using SpecialArrays
-using Base: index_shape, index_dimsum, index_ndims, to_indices
-using Test
-using Random
-
+using Adapt: Adapt, adapt
 using AxisArrays: AxisArrays
-using UnsafeArrays
+using Base: index_shape, index_dimsum, index_ndims, to_indices
+using Base: mightalias, unalias, dataids
 using BenchmarkTools
-using StaticNumbers
-using Parameters
-
 using LyceumBase.LyceumCore
-using SpecialArrays: _maybe_unsqueeze
 using LyceumBase.TestUtil
+using Parameters
+using Random
+using StaticNumbers
+using Test
+using UnsafeArrays
 
-include("testutil.jl")
+using SpecialArrays
+using SpecialArrays: CartesianIndexer
 
-nones(N::Integer) = ntuple(_ -> 1, Val(unstatic(N)))
+
+include("util.jl")
+
 
 testdims(L::Integer) = ntuple(i -> 3 + i, Val(unstatic(L)))

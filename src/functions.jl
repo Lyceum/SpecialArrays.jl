@@ -1,7 +1,3 @@
-####
-#### inner_* functions
-####
-
 """
     innereltype(A::AbstractArray{<:AbstractArray})
     innereltype(A::Type{<:AbstractArray{<:AbstractArray}})
@@ -66,8 +62,8 @@ Throws an error if the elements of `A` do not have equal axes.
 """
 function innersize end
 
-@inline innersize(A::AbsNestedArr) = map(length, inneraxes(A))
-@inline innersize(A::AbsNestedArr, d::Integer) = length(inneraxes(A, d))
+@inline innersize(A::AbsArr) = map(Base.unsafe_length, inneraxes(A))
+@inline innersize(A::AbsArr, d::Integer) = Base.unsafe_length(inneraxes(A, d))
 
 
 """
@@ -81,82 +77,13 @@ function innerlength end
 @inline innerlength(A::AbsNestedArr) = prod(innersize(A))
 
 
-####
-#### Conversions between nested and flat
-####
-
 """
-    flatten(A::AbstractArray{<:AbstractArray{U,M},N}
+    flatten(A::AbstractArray{<:AbstractArray{V,M},N}
 
-Flatten `A` into an Array{U,M+N}. Fails if the elements of `A` do not all
-have the same size. If the `A` is not a  nested array, the return value is `A` itself.
+Flatten `A` into an AbstractArray{V,M+N}. Fails if the elements of `A` do not all
+have the same size. If the `A` is not a nested array, the return value is `A` itself.
 """
 function flatten end
 
 flatten(A::AbsArr) = A
-
-function flatten(nested::AbsNestedArr)
-    sz_inner = innersize(nested)
-    sz_outer = size(nested)
-    L = length(sz_inner) + length(sz_outer)
-    V = innereltype(nested)
-    flat = Array{V,L}(undef, sz_inner..., sz_outer...)
-    return _flatten!(flat, nested, sz_inner)
-end
-
-flatten!(flat::AbsArr, nested::AbsNestedArr) = _flatten!(flat, nested, innersize(nested))
-
-function _flatten!(flat::AbsArr, nested::AbsNestedArr, sz_inner)
-    _check_compatible(flat, nested, sz_inner)
-    if prod(tail(size(flat), ndims(nested))) < length(nested)
-        throw(ArgumentError("prod(size(flat)[M+1:end]) must be >= length(nested)"))
-    end
-    len_inner = prod(sz_inner)
-    from = firstindex(flat)
-    @inbounds for a in nested
-        copyto!(flat, from, a, firstindex(a), len_inner)
-        from += len_inner
-    end
-    return flat
-end
-
-
-function nest!(nested::AbsSimilarNestedArr, flat::AbsArr)
-    sz_inner = innersize(nested)
-    _check_compatible(flat, nested, sz_inner)
-    if length(nested) < prod(tail(size(flat), ndims(nested)))
-        throw(ArgumentError("length(nested) must >= prod(size(flat)[M+1:end])"))
-    end
-    len_inner = prod(sz_inner)
-    from = firstindex(flat)
-    for a in nested
-        copyto!(a, firstindex(a), flat, from, len_inner)
-        from += len_inner
-    end
-    return nested
-end
-
-
-function _check_compatible(flat::AbsArr, nested::AbsSimilarNestedArr{<:Any,M}, sz_inner::Dims{M}) where {M}
-    ndims(flat) == M + ndims(nested)|| throw(DimensionMismatch("ndims(flat) must equal innerndims(nested) + ndims(nested)"))
-    front(size(flat), static(M)) == sz_inner || throw(DimensionMismatch("inner sizes of flat and nested must match"))
-end
-
-
-
-"""
-    flatview(A::AbstractArray)
-    flatview(A::AbstractArray{<:AbstractArray})
-
-View array `A` in a suitable flattened form. The shape of the flattened form
-will depend on the type of `A`. If the `A` is not a nested array, the return
-value is `A` itself. When no type-specific method is available, `flatview`
-will fall back to `flatten(A)`.
-"""
-function flatview end
-
-flatview(A::AbsArr) = A
-flatview(A::AbsNestedArr) = flatten(A)
-
-
-
+flatten(A::AbsNestedArr) = Array(flatview(A))

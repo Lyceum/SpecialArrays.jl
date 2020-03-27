@@ -1,36 +1,28 @@
 module SpecialArrays
 
-using Base: @propagate_inbounds, @pure, @_inline_meta, require_one_based_indexing
-using Base.MultiplicativeInverses: SignedMultiplicativeInverse
-
-using UnsafeArrays
 using Adapt
-using StaticNumbers
-using MacroTools: @forward
-
+using Base: @propagate_inbounds, @pure, @_inline_meta, require_one_based_indexing
+using DocStringExtensions
 using LyceumBase.LyceumCore
-using Shapes
+using MacroTools: @forward
+using StaticNumbers
+using UnsafeArrays
 
-#const IDims{N} = NTuple{N,Integer}
-#const IVararg{N} = Vararg{Integer,N}
+
+const Idx = Union{Colon, Real, AbstractArray}
+
 
 include("viewtype.jl")
+include("cartesianindexer.jl")
 
-export innereltype, innerndims, innersize, innerlength, inneraxes
-export flatten, flatten!, flatview
-export nest, nest!
+export innereltype, innerndims, inneraxes, innersize, innerlength
+export flatten
 include("functions.jl")
 
-export Slices, slice
-include("slices.jl")
+export SlicedArray, slice
+include("slicedarray.jl")
 
-export FlattenedArray
+export FlattenedArray, flatview
 include("flattenedarray.jl")
-
-#export ElasticArray, shrinklastdim!, growlastdim!, resizelastdim!
-#include("elasticarray.jl")
-
-#export BatchedVector
-#include("batchedvector.jl")
 
 end # module
