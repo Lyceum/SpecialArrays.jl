@@ -8,7 +8,11 @@ end
     getindex(A.parent, I...)
 end
 
-@propagate_inbounds function Base.setindex!(A::CartesianIndexer{<:Any,N}, v, I::Vararg{Int,N}) where {N}
+@propagate_inbounds function Base.setindex!(
+    A::CartesianIndexer{<:Any,N},
+    v,
+    I::Vararg{Int,N},
+) where {N}
     setindex!(A.parent, v, I...)
 end
 
@@ -17,4 +21,3 @@ Base.IndexStyle(::Type{<:CartesianIndexer}) = IndexCartesian()
 function Base.similar(A::CartesianIndexer, T::Type, dims::Dims)
     similar(A.parent, T, dims)
 end
-

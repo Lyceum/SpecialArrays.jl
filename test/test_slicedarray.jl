@@ -5,15 +5,14 @@ using SpecialArrays: along2string
 include("preamble.jl")
 
 const TEST_ALONGS = [
-    (static(true), ),
-    (static(false), ),
-
+    (static(true),),
+    (static(false),),
     (static(true), static(true)),
     (static(false), static(true)),
     (static(false), static(false)),
 ]
 
-slicedims(al::TupleN{SBool}) = Tuple(i for i=1:length(al) if unstatic(al[i]))
+slicedims(al::TupleN{SBool}) = Tuple(i for i = 1:length(al) if unstatic(al[i]))
 
 function makedata(V::Type, al::TupleN{SBool})
     L = length(al)
@@ -27,7 +26,7 @@ function makedata(V::Type, al::TupleN{SBool})
 
     nested = Array{Array{V,M},N}(undef, outersize...)
     i = 0
-    Base.mapslices(flat, dims=sdims) do el
+    Base.mapslices(flat, dims = sdims) do el
         i += 1
         nested[i] = zeros(V, innersize...)
         nested[i] .= el
@@ -49,13 +48,12 @@ function makedata(V::Type, al::TupleN{SBool})
     )
 end
 
-showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ',')),)"
 
-
-@testset "al = $(showalongs(al)), V = $V" for al in TEST_ALONGS, V in (Float64, Int)
+showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
+@testset "al = $(showalongs(al)), V = $V" for al in TEST_ALONGS, V in (Float64,)
     @testset "constructors" begin
         @unpack flat, sdims, static_sdims, M, N = makedata(V, al)
-        Expected = SlicedArray{<:AbsArr{V,M},N,M,Array{V,M+N},typeof(al)}
+        Expected = SlicedArray{<:AbsArr{V,M},N,M,Array{V,M + N},typeof(al)}
 
         @test typeof(SlicedArray(flat, al)) <: Expected
         @test_inferred SlicedArray(flat, al)
@@ -73,7 +71,7 @@ showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ',')),)"
         @test_inferred slice(flat, I...)
     end
 
-    let V=V, al=al
+    let V = V, al = al
         test_array_AB() do
             data = makedata(V, al)
             A = SlicedArray(data.flat, al)
@@ -82,17 +80,25 @@ showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ',')),)"
         end
     end
 
+    @testset "mapslices ($name)" for (name, f) in (
+        ("identity", identity),
+        ("sum", el -> sum(el)),
+        ("reshape(..., reverse(dims))", el -> el isa AbsArr ? reshape(el, reverse(size(el))) : el),
+        ("reshape(..., Val(1))", el -> el isa AbsArr ? reshape(el, Val(1)) : el),
+    )
+        data = makedata(V, al)
+        B1 = mapslices(f, data.flat, dims = data.sdims)
+        B2 = flatten(SpecialArrays.mapslices(f, data.flat, dims = data.sdims))
+        @test B1 == B2
+        @test_inferred SpecialArrays.mapslices(f, data.flat, dims = data.static_sdims)
+    end
+
     @testset "extra" begin
         data = makedata(V, al)
         A = SlicedArray(data.flat, al)
-        @test begin
-            flattened = flatten(A)
-            flattened !== A.parent && flattened == A.parent
-        end
-        @test_inferred flatten(A)
 
-        @test flatview(A) === A.parent
-        @test_inferred flatview(A)
+        @test flatten(A) === A.parent
+        @test_inferred flatten(A)
 
         @test innersize(A) == size(first(A))
         @test_inferred innersize(A)
@@ -127,7 +133,7 @@ end
 @testset "UnsafeArrays" begin
     A = slice(rand(2, 3, 4), 1, 3)
     Av = uview(A)
-    @test parent(Av) isa UnsafeArray{eltype(A.parent), ndims(A.parent)}
+    @test parent(Av) isa UnsafeArray{eltype(A.parent),ndims(A.parent)}
     @test A == Av
 end
 
@@ -137,6 +143,18 @@ Adapt.adapt_storage(::Type{<:CartesianIndexer}, A) = CartesianIndexer(A)
     B = adapt(CartesianIndexer, A)
     @test A == B
     @test parent(B) isa CartesianIndexer
+end
+
+@testset "Zygote" begin
+    data = makedata(Float64, (STrue(), SFalse(), STrue()))
+    x = rand!(zeros(last(data.innersize)))
+    g1 = Zygote.gradient(x -> sum(sum(a -> a * x, data.nested)), x)
+    g2 = Zygote.gradient(x -> sum(sum(a -> a * x, slice(data.flat, data.sdims))), x)
+    @test g1 == g2
+    @test_skip @test_inferred Zygote.gradient(
+        x -> sum(sum(a -> a * x, slice(data.flat, data.static_sdims))),
+        x,
+    )
 end
 
 end # module

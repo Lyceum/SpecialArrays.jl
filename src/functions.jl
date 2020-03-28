@@ -1,89 +1,73 @@
 """
-    innereltype(A::AbstractArray{<:AbstractArray})
-    innereltype(A::Type{<:AbstractArray{<:AbstractArray}})
+    innereltype(A::Type{<:AbstractArray})
+    innereltype(A::AbstractArray)
 
-Returns the common element type of the element arrays of `A`.
-Equivalent to eltype(eltype(A)).
+Returns the common `eltype` of the elements of `A`.
 """
-function innereltype end
-
-innereltype(::Type{A}) where {A<:AbsNestedArr} = eltype(eltype(A))
-innereltype(A::AbsNestedArr) = eltype(eltype(A))
+innereltype(::Type{A}) where {A<:AbsArr} = eltype(eltype(A))
+innereltype(A::AbsArr) = eltype(eltype(A))
 
 
 """
-    innerndims(A::AbstractArray{<:AbstractArray})
-    innerndims(A::Type{<:AbstractArray{<:AbstractArray}})
+    innerndims(A::Type{<:AbstractArray})
+    innerndims(A::AbstractArray)
 
-Returns the dimensionality of the element arrays of `A`.
-Equivalent to ndims(eltype(A)).
+Returns the common dimensionality of the elements of `A`.
+Throws an error if the elements of `A` do not have equal dimensionality.
 """
-function innerndims end
-
-innerndims(::Type{A}) where {A<:AbsNestedArr} = ndims(eltype(A))
-innerndims(A::AbsNestedArr) = ndims(eltype(A))
+innerndims(::Type{<:AbsArr{<:AbsArr{<:Any,N}}}) where {N} = N
+innerndims(A::AbsArr{<:AbsArr{<:Any,N}}) where {N} = N
+# Unlike innereltype which defaults to Any if eltype(A) isa UnionAll there is no good default for N
+innerndims(A::AbsArr) = _scan_inner(ndims, A)
 
 
 """
-    inneraxes(A::AbstractArray{<:AbstractArray}[, d])
+    inneraxes(A::AbstractArray[, d])
 
-Returns the common length of the element arrays of `A`.
-Throws an error if the element arrays of `A` do not have equal axes.
+Returns the common axes of the elements of `A`.
+Throws an error if the elements of `A` do not have equal axes.
 """
-function inneraxes end
-
-function inneraxes(A::AbsNestedArr)
-    M = innerndims(A)
+function inneraxes(A::AbsArr)
     if isempty(A)
         # TODO this would be wrong for offset arrays?
-        ax = ntuple(_ -> Base.OneTo(0), Val(M))
+        return ntuple(_ -> Base.OneTo(0), innerndims(A))
     else
-        ax = axes(first(A))
-        length(ax) == M || throw(DimensionMismatch("length(inneraxes(A)) != innerndims(A)"))
-        for a in A
-            if axes(a) != ax
-                throw(DimensionMismatch("The elements of A do not have equal axes"))
-            end
-        end
+        return _scan_inner(axes, A)
     end
-    return ax
 end
 
-@inline function inneraxes(A::AbsNestedArr, d::Integer)
+@inline function inneraxes(A::AbsArr, d::Integer)
     d <= innerndims(A) ? inneraxes(A)[d] : Base.OneTo(1)
 end
 
 
 """
-    innersize(A::AbstractArray{<:AbstractArray}[, d])
+    innersize(A::AbstractArray[, d])
 
-Returns the size of the element arrays of `A`.
+Returns the common size of the elements of `A`.
 Throws an error if the elements of `A` do not have equal axes.
 """
-function innersize end
-
 @inline innersize(A::AbsArr) = map(Base.unsafe_length, inneraxes(A))
 @inline innersize(A::AbsArr, d::Integer) = Base.unsafe_length(inneraxes(A, d))
 
 
 """
-    innerlength(A::AbstractArray{<:AbstractArray})
+    innerlength(A::AbstractArray)
 
-Returns the common length of the element arrays of `A`.
-Throws an error if the element arrays of `A` do not have equal size.
+Returns the common length of the elements of `A`.
+Throws an error if the elements of `A` do not have equal length.
 """
-function innerlength end
-
-@inline innerlength(A::AbsNestedArr) = prod(innersize(A))
+@inline innerlength(A::AbsArr) = _scan_inner(length, A)
 
 
-"""
-    flatten(A::AbstractArray{<:AbstractArray{V,M},N}
-
-Flatten `A` into an AbstractArray{V,M+N}. Fails if the elements of `A` do not all
-have the same size. If the `A` is not a nested array, the return value is `A` itself.
-"""
-function flatten end
-
-flatten(A::AbsArr) = A
-flatten(A::AbsNestedArr) = Array(flatview(A))
+function _scan_inner(f::F, A::AbsArr) where {F}
+    if isempty(A)
+        throw(ArgumentError("Cannot apply $f to an empty array"))
+    else
+        x = f(first(A))
+        for a in A
+            f(a) == x || error("The element arrays of A do not have matching $f")
+        end
+        return x
+    end
+end

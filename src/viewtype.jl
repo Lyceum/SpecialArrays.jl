@@ -8,7 +8,7 @@ viewtype(A::AbstractArray, I::Tuple) = _viewtype(A, I)
 viewtype(A::AbstractArray, I...) = _viewtype(A, I)
 
 @generated function _viewtype(A::AA, I::II) where {AA<:AbstractArray,II<:Tuple}
-    T = Core.Compiler.return_type(view, Tuple{AA, II.parameters...})
+    T = Core.Compiler.return_type(view, Tuple{AA,II.parameters...})
     if isconcretetype(T)
         return :($T)
     else
@@ -21,7 +21,7 @@ function call2str(f, args...)
     return length(args) > 0 ? "$f($(join(argstrings, ", ")))" : string(f)
 end
 
-@inline function __viewtype(A::AA, I::II) where {AA <:AbstractArray, II<:Tuple}
+@inline function __viewtype(A::AA, I::II) where {AA<:AbstractArray,II<:Tuple}
     try
         typeof(view(A, I...))
     catch e
@@ -31,7 +31,7 @@ end
             "that resulted in the below error. Try passing in valid indices or implement:\n",
             "   $(call2str(viewtype, typeof(A), typeof.(I)...))\n",
         ))
-        printstyled(stderr, msg, color=:light_red)
+        printstyled(stderr, msg, color = :light_red)
         rethrow(e)
     end
 end

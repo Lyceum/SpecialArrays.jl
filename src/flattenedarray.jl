@@ -2,61 +2,23 @@ struct FlattenedArray{V,L,M,P,InAx} <: AbstractArray{V,L}
     parent::P
     inneraxes::InAx
     @inline function FlattenedArray{V,L,M,P,InAx}(parent, inneraxes) where {V,L,M,P,InAx}
-        _check_flattenedarray_parameters(V, Val(L), Val(M), P, InAx)
         new{V,L,M,P,InAx}(parent, inneraxes)
     end
 end
 
-@inline function FlattenedArray(parent::AbsSimilarNestedArr{V,M,N}, inneraxes::NTuple{M,Any}) where {V,M,N}
-    FlattenedArray{V,M+N,M,typeof(parent),typeof(inneraxes)}(parent, inneraxes)
+@inline function FlattenedArray(
+    parent::AbsSimilarNestedArr{V,M,N},
+    inneraxes::NTuple{M,Any},
+) where {V,M,N}
+    FlattenedArray{V,M + N,M,typeof(parent),typeof(inneraxes)}(parent, inneraxes)
 end
 
-@inline function FlattenedArray(parent::AbsSimilarNestedArr)
-    FlattenedArray(parent, inneraxes(parent))
+@inline function FlattenedArray(parent::AbsArr{<:Any,N}, inneraxes::NTuple{M,Any}) where {N,M}
+    V = innereltype(parent)
+    FlattenedArray{V,M + N,M,typeof(parent),typeof(inneraxes)}(parent, inneraxes)
 end
 
-function _check_flattenedarray_parameters(::Type{V}, ::Val{L}, ::Val{M}, ::Type{P}, ::Type{InAx}) where {V,L,M,P,InAx}
-    if !(L isa Int && M isa Int)
-        throw(ArgumentError("FlattenedArray type parameters L and M must be of type Int"))
-    end
-    if !(P <: AbsSimilarNestedArr{V,M,L-M})
-        throw(ArgumentError("FlattenedArray parameter P should be <: AbstractArray{<:AbstractArray{V,M},N}"))
-    end
-    if !(InAx <: NTuple{M,Any})
-        throw(ArgumentError("FlattenedArray parameter InAx should be <: NTuple{M,Any}"))
-    end
-    return nothing
-end
-
-
-"""
-    $(SIGNATURES)
-
-Like [`flatten`](@ref), but provides a view into the parent array `A` instead of
-creating a new array.
-
-```jldoctest
-julia> A = [reshape(Vector(1:6), (2, 3)), reshape(Vector(7:12), (2, 3))]
-2-element Array{Array{Int64,2},1}:
- [1 3 5; 2 4 6]
- [7 9 11; 8 10 12]
-
-julia> B = flatview(A)
-2×3×2 flatview(::Array{Array{Int64,2},1}) with eltype Int64 and inner size (2, 3):
-[:, :, 1] =
- 1  3  5
- 2  4  6
-
-[:, :, 2] =
- 7   9  11
- 8  10  12
-
-julia> B == reshape(hcat(B...), (2, 3, 2))
-true
-```
-"""
-flatview(A::AbsNestedArr) = FlattenedArray(A)
-flatview(A::AbsArr) = A
+@inline FlattenedArray(parent::AbsArr) = FlattenedArray(parent, inneraxes(parent))
 
 
 ####
@@ -73,7 +35,11 @@ flatview(A::AbsArr) = A
     F.parent[_outer_indices(F, I)...][_inner_indices(F, I)...]
 end
 
-@propagate_inbounds function Base.setindex!(F::FlattenedArray{<:Any,L}, v, I::Vararg{Int,L}) where {L}
+@propagate_inbounds function Base.setindex!(
+    F::FlattenedArray{<:Any,L},
+    v,
+    I::Vararg{Int,L},
+) where {L}
     F.parent[_outer_indices(F, I)...][_inner_indices(F, I)...] = v
     return F
 end
@@ -172,12 +138,10 @@ end
 
 
 function Base.showarg(io::IO, A::FlattenedArray, toplevel)
-    print(io, "flatview(")
+    print(io, "flatten(")
     Base.showarg(io, parent(A), false)
     print(io, ')')
-    if toplevel
-        print(io, " with eltype ", eltype(A), " and inner size ", innersize(A))
-    end
+    toplevel && print(io, " with eltype ", eltype(A))
     return nothing
 end
 
@@ -187,3 +151,31 @@ end
 ####
 
 @inline inneraxes(F::FlattenedArray) = F.inneraxes
+
+"""
+    flatten(A::AbstractArray{<:AbstractArray{V,M},N})
+
+Return a `M+N`-dimensional flattened view of `A`. Throws an error if the elements of `A` do not
+have equal size. If `A` is not a nested array, the return value is `A` itself.
+
+```jldoctest
+julia> A = [reshape(Vector(1:6), (2, 3)), reshape(Vector(7:12), (2, 3))]
+2-element Array{Array{Int64,2},1}:
+ [1 3 5; 2 4 6]
+ [7 9 11; 8 10 12]
+
+julia> B = flatten(A)
+2×3×2 flatten(::Array{Array{Int64,2},1}) with eltype Int64:
+[:, :, 1] =
+ 1  3  5
+ 2  4  6
+
+[:, :, 2] =
+ 7   9  11
+ 8  10  12
+
+julia> B == reshape(hcat(B...), (2, 3, 2))
+true
+```
+"""
+flatten(A::AbsArr) = FlattenedArray(A)

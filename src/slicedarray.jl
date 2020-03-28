@@ -7,7 +7,12 @@ struct SlicedArray{T,N,M,P<:AbsArr,A} <: AbstractArray{T,N}
     end
 end
 
-@inline function SlicedArray(parent::AbsArr{<:Any,L}, alongs::NTuple{L,SBool}, inaxes::NTuple{M,Any}, outaxes::NTuple{N,Any}) where {L,M,N}
+@inline function SlicedArray(
+    parent::AbsArr{<:Any,L},
+    alongs::NTuple{L,SBool},
+    inaxes::NTuple{M,Any},
+    outaxes::NTuple{N,Any},
+) where {L,M,N}
     I = ntuple(i -> first(outaxes[i]), Val(N))
     J = static_merge(alongs, ntuple(i -> Base.Slice(inaxes[i]), Val(M)), I)
     T = viewtype(parent, J...)
@@ -21,10 +26,16 @@ end
     SlicedArray(parent, alongs, inaxes, outaxes)
 end
 
-@generated function check_slices_parameters(::Type{T}, ::Val{N}, ::Val{M}, ::Type{P}, ::Type{A}) where {T,N,M,P,A}
+@generated function check_slices_parameters(
+    ::Type{T},
+    ::Val{N},
+    ::Val{M},
+    ::Type{P},
+    ::Type{A},
+) where {T,N,M,P,A}
     if !(N isa Int && M isa Int)
         return :(throw(ArgumentError("SlicedArray parameters N and M must be of type Int")))
-    elseif !(A <: NTuple{M+N,SBool})
+    elseif !(A <: NTuple{M + N,SBool})
         return :(throw(ArgumentError("SlicedArray parameter A should be of type NTuple{M+N,$SBool}")))
     elseif N < 0 || M < 0 || ndims(P) != N + M && (M > 0 && sum(unwrap, A.parameters) != M)
         return :(throw(ArgumentError("Dimension mismatch in SlicedArray parameters"))) # got N=$N, M=$M, ndims(P)=$(ndims(P)), and sum(A)=$(sum(A))")))
@@ -144,7 +155,11 @@ end
     S.parent[parentindices(S, I)...] = v
     return S
 end
-@propagate_inbounds function Base.setindex!(S::SlicedArray{<:Any,N,0}, v::AbsArr{<:Any,0}, I::Vararg{Int,N}) where {N}
+@propagate_inbounds function Base.setindex!(
+    S::SlicedArray{<:Any,N,0},
+    v::AbsArr{<:Any,0},
+    I::Vararg{Int,N},
+) where {N}
     S.parent[parentindices(S, I)...] = v[]
     return S
 end
@@ -160,7 +175,11 @@ end
     _unsafe_getindex(S, J, Base.index_ndims(J...))
 end
 
-@inline function _unsafe_getindex(S::SlicedArray{<:Any,N}, J::NTuple{N,Idx}, ::NTuple{N,Bool}) where {N}
+@inline function _unsafe_getindex(
+    S::SlicedArray{<:Any,N},
+    J::NTuple{N,Idx},
+    ::NTuple{N,Bool},
+) where {N}
     K = parentindices(S, J)
     return @inbounds _maybe_wrap(view(S.parent, K...), reslice(S.alongs, K))
 end
@@ -179,10 +198,10 @@ end
     (_reslice1(first(alongs), first(K))..., reslice(tail(alongs), tail(K))...)
 end
 reslice(::Tuple{}, ::Tuple{}) = ()
-@inline _reslice1(::STrue, k) = (static(true), ) # keep inner dimension
+@inline _reslice1(::STrue, k) = (static(true),) # keep inner dimension
 @inline _reslice1(::SFalse, k) = _reslicefalse(k)
 @inline _reslicefalse(::Real) = () # drop this dimension
-@inline _reslicefalse(::Colon) = (static(false), ) # keep this dimension
+@inline _reslicefalse(::Colon) = (static(false),) # keep this dimension
 @inline function _reslicefalse(::AbstractArray{<:Any,N}) where {N}
     ntuple(_ -> static(false), Val(N))
 end
@@ -217,7 +236,7 @@ function Base.showarg(io::IO, A::SlicedArray, toplevel)
     end
     print(io, ')')
     if toplevel
-        print(io, " with ", Base.dims2string(innersize(A))," eltype ", eltype(A))
+        print(io, " with ", Base.dims2string(innersize(A)), " eltype ", eltype(A))
     end
     return nothing
 end
@@ -229,12 +248,50 @@ along2string(::SFalse) = '*'
 ##### Extra
 #####
 
-
-flatten(S::SlicedArray) = copy(S.parent)
-flatview(S::SlicedArray) = S.parent
-
 @inline innersize(S::SlicedArray) = static_filter(STrue(), S.alongs, size(S.parent))
 @inline inneraxes(S::SlicedArray) = static_filter(STrue(), S.alongs, axes(S.parent))
+
+flatten(S::SlicedArray) = S.parent
+
+
+function mapslices(f, A::AbstractArray; dims::TupleN{StaticOrInt})
+    S = slice(A, dims)
+    B = _alloc_keepdims(S, f(first(S)))
+    @assert axes(S) == axes(B)
+    for I in eachindex(S, B) # TODO start from second
+        _unsafe_copy_inner!(B, f(S[I]), I)
+    end
+    return B
+end
+
+@inline _unsafe_copy_inner!(B::AbsArr, b, I) = @inbounds B[I] = b
+@inline function _unsafe_copy_inner!(B::AbsArr, b::AbsArr, I)
+    error("Internal error. Please file a bug report.")
+end
+
+@inline function _unsafe_copy_inner!(B::SlicedArray, b, I)
+    @inbounds Bv = B[I]
+    @inbounds Bv .= b
+end
+@inline function _unsafe_copy_inner!(B::SlicedArray, b::AbsArr, I)
+    Bv = @inbounds B[I]
+    if length(Bv) != length(b)
+        throw(DimensionMismatch("Expected of $(length(Bv)) for f(slice). Got: $(length(b))"))
+    end
+    copyto!(Bv, b)
+    return B
+end
+
+function _alloc_keepdims(S::SlicedArray{<:Any,N,M}, b1) where {T,N,M}
+    innerax = _reshape_axes(axes(b1), Val(M))
+    innersz = ntuple(i -> (Base.@_inline_meta; length(innerax[i])), Val(M))
+    parentsz = static_merge(S.alongs, innersz, size(S))
+    SlicedArray(Array{eltype(b1),M + N}(undef, parentsz...), S.alongs)
+end
+
+_reshape_axes(axes::Tuple, ::Val{N}) where {N} = Base.rdims(Val(N), axes)
+_reshape_axes(axes::NTuple{N,Any}, ::Val{N}) where {N} = axes
+
 
 
 #####

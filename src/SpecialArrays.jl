@@ -3,26 +3,30 @@ module SpecialArrays
 using Adapt
 using Base: @propagate_inbounds, @pure, @_inline_meta, require_one_based_indexing
 using DocStringExtensions
-using LyceumBase.LyceumCore
+using LyceumCore
 using MacroTools: @forward
+using Requires: @require
 using StaticNumbers
 using UnsafeArrays
 
 
-const Idx = Union{Colon, Real, AbstractArray}
+const Idx = Union{Colon,Real,AbstractArray}
 
 
 include("viewtype.jl")
 include("cartesianindexer.jl")
 
 export innereltype, innerndims, inneraxes, innersize, innerlength
-export flatten
 include("functions.jl")
 
 export SlicedArray, slice
 include("slicedarray.jl")
 
-export FlattenedArray, flatview
+export FlattenedArray, flatten
 include("flattenedarray.jl")
+
+function __init__()
+    @require Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f" include("zygote.jl")
+end
 
 end # module

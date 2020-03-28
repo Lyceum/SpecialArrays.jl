@@ -43,7 +43,7 @@ macro test_getindex(A, I)
             if $index_dimsum($I) == () && !($I isa AbstractArray{<:Any,0})
                 $Test.@test $typeof($A[$I]) == $eltype($A)
             else
-                $Test.@test $size($A[$I]) == $map($length, $index_shape($to_indices($A, ($I, ))...))
+                $Test.@test $size($A[$I]) == $map($length, $index_shape($to_indices($A, ($I,))...))
                 $Test.@test $eltype($A[$I]) == $eltype($A)
             end
         end
@@ -73,14 +73,16 @@ macro test_getindices(A, Is)
                 if $index_dimsum(I...) == ()
                     $typeof($A[I...]) == $eltype($A)
                 else
-                    $eltype($A[I...]) == $eltype($A) && $size($A[I...]) == $map($length, $index_shape($to_indices($A, I)...))
+                    $eltype($A[I...]) == $eltype($A) &&
+                    $size($A[I...]) == $map($length, $index_shape($to_indices($A, I)...))
                 end
             else
                 #if $index_dimsum(I) == ()
                 if $index_dimsum(I) == () && !(I isa AbstractArray{<:Any,0})
                     $typeof($A[I]) == $eltype($A)
                 else
-                    $eltype($A[I]) == $eltype($A) && $size($A[I]) == $map($length, $index_shape($to_indices($A, (I, ))...))
+                    $eltype($A[I]) == $eltype($A) &&
+                    $size($A[I]) == $map($length, $index_shape($to_indices($A, (I,))...))
                 end
             end
         end
@@ -130,7 +132,9 @@ macro test_copyto!(dest, src)
         else
             $Test.@test_skip $TestUtil.@test_inferred $copyto!($dest, 2, $src, 2, 1)
             $Test.@test_skip $copyto!($dest, 2, $src, 2, 1) === $dest
-            $Test.@test_skip $dest[2] == $src[2] && $dest[1] != $src[1] && $dest[3:end] != $src[3:end]
+            $Test.@test_skip $dest[2] == $src[2] &&
+                             $dest[1] != $src[1] &&
+                             $dest[3:end] != $src[3:end]
         end
     end
 end
@@ -321,4 +325,3 @@ function test_array_AB(AB::Function)
         end
     end
 end
-
