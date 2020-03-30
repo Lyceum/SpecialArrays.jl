@@ -26,6 +26,21 @@ end
     SlicedArray(parent, alongs, inaxes, outaxes)
 end
 
+@inline function SlicedArray(S::SlicedArray{<:Any,L}, alongs::NTuple{L,SBool}) where {L}
+    SlicedArray(S.parent, _merge_alongs(S.alongs, alongs))
+end
+
+@inline function _merge_alongs(olds::Tuple{STrue, Vararg{SBool}}, news::TupleN{SBool})
+    (STrue(), _merge_alongs(tail(olds), news)...)
+end
+@inline function _merge_alongs(olds::Tuple{SFalse, Vararg{SBool}}, news::TupleN{SBool})
+    (first(news), _merge_alongs(tail(olds), tail(news))...)
+end
+_merge_alongs(olds::Tuple{STrue}, news::Tuple{}) = (STrue(), )
+_merge_alongs(olds::Tuple{SFalse}, news::Tuple{SBool}) = (first(news), )
+_merge_alongs(xs...) = error()
+
+
 @generated function check_slices_parameters(
     ::Type{T},
     ::Val{N},
@@ -227,6 +242,19 @@ Base.parent(S::SlicedArray) = S.parent
 Base.dataids(S::SlicedArray) = Base.dataids(S.parent)
 
 Base.copy(S::SlicedArray) = SlicedArray(copy(S.parent), S.alongs)
+
+
+Base.append!(S::SlicedArray, iter) = (append!(S.parent, iter); S)
+
+Base.prepend!(S::SlicedArray, iter) = (prepend!(S.parent, iter); S)
+
+function Base.resize!(S::SlicedArray{<:Any,N}, dims::Dims{N}) where {N}
+    indims = innersize(S)
+    parentdims = static_merge(S.alongs, indims, dims)
+    resize!(S.parent, parentdims)
+    return S
+end
+
 
 function Base.showarg(io::IO, A::SlicedArray, toplevel)
     print(io, "slice(")
