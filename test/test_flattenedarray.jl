@@ -1,6 +1,10 @@
 module FlattenedArrayTest
 
+using Zygote
+
+
 include("preamble.jl")
+
 
 function makedata(V::Type, M::Integer, N::Integer)
     dims = testdims(M + N)

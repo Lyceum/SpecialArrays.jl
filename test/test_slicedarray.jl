@@ -1,8 +1,12 @@
 module TestSlices
 
+using Zygote
+
 using SpecialArrays: along2string
+using SpecialArrays: CartesianIndexer
 
 include("preamble.jl")
+
 
 const TEST_ALONGS = [
     (static(true),),
