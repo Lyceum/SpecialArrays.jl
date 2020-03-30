@@ -9,6 +9,7 @@ using DocStringExtensions
 using LyceumCore
 using MacroTools: @forward
 using Requires: @require
+using Shapes
 using StaticNumbers
 using UnsafeArrays
 

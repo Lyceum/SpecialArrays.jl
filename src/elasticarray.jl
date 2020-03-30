@@ -84,6 +84,15 @@ end
 @propagate_inbounds ElasticArray(A::AbsArr) = ElasticArray{eltype(A)}(A)
 
 
+@inline function ElasticArray(undef, shape::AbstractShape{<:Any,T,M}, dims::NTuple{N,Integer}) where {T,M,N}
+    ElasticArray{T,M+N}(undef, size(shape)..., dims...)
+end
+
+@inline function ElasticArray(undef, shape::AbstractShape, dims::Integer...) where {T,M,N}
+    ElasticArray(undef, shape, dims)
+end
+
+
 Base.convert(::Type{T}, A::AbsArr) where {T<:ElasticArray} = A isa T ? A : T(A)
 
 

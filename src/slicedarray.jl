@@ -248,12 +248,14 @@ Base.append!(S::SlicedArray, iter) = (append!(S.parent, iter); S)
 
 Base.prepend!(S::SlicedArray, iter) = (prepend!(S.parent, iter); S)
 
-function Base.resize!(S::SlicedArray{<:Any,N}, dims::Dims{N}) where {N}
+function Base.resize!(S::SlicedArray{<:Any,N}, dims::NTuple{N,Integer}) where {N}
     indims = innersize(S)
     parentdims = static_merge(S.alongs, indims, dims)
     resize!(S.parent, parentdims)
     return S
 end
+
+Base.resize!(S::SlicedArray, dims::Integer...) = resize!(S, dims)
 
 
 function Base.showarg(io::IO, A::SlicedArray, toplevel)
