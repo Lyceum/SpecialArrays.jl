@@ -1,4 +1,4 @@
-module TestSlices
+module TestSlicedArray
 
 using Zygote
 

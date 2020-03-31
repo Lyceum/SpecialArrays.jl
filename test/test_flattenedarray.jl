@@ -1,4 +1,4 @@
-module FlattenedArrayTest
+module TestFlattenedArray
 
 using Zygote
 
