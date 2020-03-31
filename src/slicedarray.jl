@@ -1,45 +1,34 @@
-struct SlicedArray{T,N,M,P<:AbsArr,A} <: AbstractArray{T,N}
+struct SlicedArray{T,N,M,P,A} <: AbstractArray{T,N}
     parent::P
     alongs::A
-    @inline function SlicedArray{T,N,M,P,A}(parent, alongs) where {T,N,M,P<:AbsArr,A}
-        check_slices_parameters(T, Val(N), Val(M), P, A)
+    @inline function SlicedArray{T,N,M,P,A}(parent, alongs) where {T,N,M,P,A}
+        check_slices_parameters(T::Type, Val(N::Int), Val(M::Int), P::Type, A::Type)
         new(parent, alongs)
     end
 end
 
 @inline function SlicedArray(
     parent::AbsArr{<:Any,L},
-    alongs::NTuple{L,SBool},
+    alongs::NTuple{L,TypedBool},
     inaxes::NTuple{M,Any},
     outaxes::NTuple{N,Any},
 ) where {L,M,N}
-    I = ntuple(i -> first(outaxes[i]), Val(N))
-    J = static_merge(alongs, ntuple(i -> Base.Slice(inaxes[i]), Val(M)), I)
-    T = viewtype(parent, J...)
+    I = ntuple(i -> (@_inline_meta; first(outaxes[i])), Val(N))
+    J = parentindices(axes(parent), alongs, I)
+    T = viewtype(parent, J)
     SlicedArray{T,N,M,typeof(parent),typeof(alongs)}(parent, alongs)
 end
 
-@inline function SlicedArray(parent::AbsArr{<:Any,L}, alongs::NTuple{L,SBool}) where {L}
+@inline function SlicedArray(parent::AbsArr{<:Any,L}, alongs::NTuple{L,TypedBool}) where {L}
     paxes = axes(parent)
-    inaxes = static_filter(STrue(), alongs, paxes)
-    outaxes = static_filter(SFalse(), alongs, paxes)
+    inaxes = paxes[alongs]
+    outaxes = paxes[tuple_map(!, alongs)]
     SlicedArray(parent, alongs, inaxes, outaxes)
 end
 
-@inline function SlicedArray(S::SlicedArray{<:Any,L}, alongs::NTuple{L,SBool}) where {L}
-    SlicedArray(S.parent, _merge_alongs(S.alongs, alongs))
+@inline function SlicedArray(S::SlicedArray{<:Any,L}, alongs::NTuple{L,TypedBool}) where {L}
+    SlicedArray(S.parent, Base.setindex(S.alongs, alongs, tuple_map(!, S.alongs)))
 end
-
-@inline function _merge_alongs(olds::Tuple{STrue, Vararg{SBool}}, news::TupleN{SBool})
-    (STrue(), _merge_alongs(tail(olds), news)...)
-end
-@inline function _merge_alongs(olds::Tuple{SFalse, Vararg{SBool}}, news::TupleN{SBool})
-    (first(news), _merge_alongs(tail(olds), tail(news))...)
-end
-_merge_alongs(olds::Tuple{STrue}, news::Tuple{}) = (STrue(), )
-_merge_alongs(olds::Tuple{SFalse}, news::Tuple{SBool}) = (first(news), )
-_merge_alongs(xs...) = error()
-
 
 @generated function check_slices_parameters(
     ::Type{T},
@@ -48,16 +37,15 @@ _merge_alongs(xs...) = error()
     ::Type{P},
     ::Type{A},
 ) where {T,N,M,P,A}
-    if !(N isa Int && M isa Int)
-        return :(throw(ArgumentError("SlicedArray parameters N and M must be of type Int")))
-    elseif !(A <: NTuple{M + N,SBool})
-        return :(throw(ArgumentError("SlicedArray parameter A should be of type NTuple{M+N,$SBool}")))
-    elseif N < 0 || M < 0 || ndims(P) != N + M && (M > 0 && sum(unwrap, A.parameters) != M)
-        return :(throw(ArgumentError("Dimension mismatch in SlicedArray parameters"))) # got N=$N, M=$M, ndims(P)=$(ndims(P)), and sum(A)=$(sum(A))")))
-    else
-        return nothing
+    A <: NTuple{M + N,TypedBool} || return :(throw(ArgumentError("SlicedArray parameter A should <: NTuple{M+N,$TypedBool}")))
+    ntrue = 0
+    for AA in A.parameters
+        AA === True && (ntrue += 1)
     end
-    error("Internal error. Please file a bug report")
+    if !(P <: AbsArr{eltype(T),M+N} && N >= 0 && M >= 0 && M == ntrue)
+        return :(throw(ArgumentError("SlicedArray parameter P should be <: AbstractArray{eltype(T),M+N}")))
+    end
+    return nothing
 end
 
 
@@ -99,7 +87,7 @@ julia> innersize(B)
 ```
 """
 @inline function slice(A::AbsArr, I::Vararg{Union{Colon,typeof(*)},L}) where {L}
-    alongs = ntuple(i -> (Base.@_inline_meta; I[i] isa Colon ? STrue() : SFalse()), Val(L))
+    alongs = ntuple(i -> (Base.@_inline_meta; I[i] === Colon() ? True() : False()), Val(L))
     SlicedArray(reshape(A, Val(L)), alongs)
 end
 
@@ -130,8 +118,10 @@ julia> B = slice(A, 1, 3)
 julia> view(A, :, 1, :) === B[1]
 true
 ```
+
 `alongs` can also be specified using `StaticInteger` from StaticNumbers.jl for
 better type inference:
+
 ```jldoctest
 julia> using StaticNumbers
 
@@ -142,12 +132,12 @@ true
 ```
 """
 @inline function slice(A::AbsArr{<:Any,L}, alongs::TupleN{StaticOrInt}) where {L}
-    SlicedArray(A, ntuple(dim -> static_in(dim, alongs), Val(L)))
+    SlicedArray(A, ntuple(dim -> (@_inline_meta; static_in(dim, alongs)), Val(L)))
 end
 @inline slice(A::AbsArr, alongs::Vararg{StaticOrInt}) = slice(A, alongs)
 
 @inline function slice(A::AbsArr{<:Any,L}, ::Tuple{}) where {L}
-    SlicedArray(A, ntuple(_ -> static(false), Val(L)))
+    SlicedArray(A, ntuple(_ -> (@_inline_meta; False()), Val(L)))
 end
 @inline slice(A::AbsArr) = slice(A, ())
 
@@ -156,9 +146,9 @@ end
 #### Core Array Interface
 ####
 
-@inline Base.axes(S::SlicedArray) = static_filter(SFalse(), S.alongs, axes(S.parent))
+@inline Base.axes(S::SlicedArray) = axes(S.parent)[tuple_map(!, S.alongs)]
 
-@inline Base.size(S::SlicedArray) = static_filter(SFalse(), S.alongs, size(S.parent))
+@inline Base.size(S::SlicedArray) = size(S.parent)[tuple_map(!, S.alongs)]
 
 
 # standard Cartesian indexing
@@ -182,7 +172,8 @@ end
 # If `I isa Vararg{Idx,N} && length(Base.index_ndims(I...)) == N` We can just forward the
 # indices to the parent array and drop the corresponding entries in `S.alongs`
 # (that is, we can drop `S.alongs[i]` iff
-# `S.alongs[i] === static(false) && and Base.index_shape(I[i]) === ())`.
+# `S.alongs[i] === False() && and Base.index_shape(I[i]) === ())`) rather than allocating a new
+# output array.
 
 @inline function Base.getindex(S::SlicedArray{<:Any,N}, I::Vararg{Idx,N}) where {N}
     J = Base.to_indices(S, I)
@@ -204,28 +195,30 @@ end
     @inbounds CartesianIndexer(A)[J...]
 end
 
-@inline _maybe_wrap(A::AbstractArray, alongs::TupleN{SBool}) = SlicedArray(A, alongs)
+@inline _maybe_wrap(A::AbstractArray, alongs::TupleN{TypedBool}) = SlicedArray(A, alongs)
 # A single element, so no need to wrap with a SlicedArray
-@inline _maybe_wrap(A::AbstractArray{<:Any,M}, ::NTuple{M,STrue}) where {M} = A
+@inline _maybe_wrap(A::AbstractArray{<:Any,M}, ::NTuple{M,True}) where {M} = A
 
-# add/drop non-sliced dimensions (i.e. alongs[dim] == SFalse()) to match J
-@inline function reslice(alongs::NTuple{L,SBool}, K::NTuple{L,Any}) where {L}
+# add/drop non-sliced dimensions (i.e. alongs[dim] == False()) to match J
+@inline function reslice(alongs::NTuple{L,TypedBool}, K::NTuple{L,Any}) where {L}
     (_reslice1(first(alongs), first(K))..., reslice(tail(alongs), tail(K))...)
 end
 reslice(::Tuple{}, ::Tuple{}) = ()
-@inline _reslice1(::STrue, k) = (static(true),) # keep inner dimension
-@inline _reslice1(::SFalse, k) = _reslicefalse(k)
+@inline _reslice1(::True, k) = (True(), ) # keep inner dimension
+@inline _reslice1(::False, k) = _reslicefalse(k)
 @inline _reslicefalse(::Real) = () # drop this dimension
-@inline _reslicefalse(::Colon) = (static(false),) # keep this dimension
+@inline _reslicefalse(::Colon) = (False(), ) # keep this dimension
 @inline function _reslicefalse(::AbstractArray{<:Any,N}) where {N}
-    ntuple(_ -> static(false), Val(N))
+    ntuple(_ -> False(), Val(N))
 end
 
 
 @inline function parentindices(S::SlicedArray{<:Any,N,M}, I::NTuple{N,Any}) where {N,M}
-    inaxes = inneraxes(S)
-    slices = ntuple(i -> (Base.@_inline_meta; Base.Slice(inaxes[i])), Val(M))
-    static_merge(S.alongs, slices, I)
+    parentindices(axes(S.parent), S.alongs, I)
+end
+
+@inline function parentindices(paxes::NTuple{N,Any}, alongs::NTuple{N,TypedBool}, I::Tuple) where {N}
+    Base.setindex(tuple_map(ax->(@_inline_meta; Base.Slice(ax)), paxes), I, tuple_map(!, alongs))
 end
 
 
@@ -233,9 +226,7 @@ end
 ##### Misc
 #####
 
-function Base.:(==)(A::SlicedArray, B::SlicedArray)
-    A.alongs == B.alongs && A.parent == B.parent
-end
+Base.:(==)(A::SlicedArray, B::SlicedArray) = A.alongs == B.alongs && A.parent == B.parent
 
 Base.parent(S::SlicedArray) = S.parent
 
@@ -270,23 +261,23 @@ function Base.showarg(io::IO, A::SlicedArray, toplevel)
     end
     return nothing
 end
-along2string(::STrue) = ':'
-along2string(::SFalse) = '*'
+along2string(::True) = ':'
+along2string(::False) = '*'
 
 
 #####
 ##### Extra
 #####
 
-@inline innersize(S::SlicedArray) = static_filter(STrue(), S.alongs, size(S.parent))
-@inline inneraxes(S::SlicedArray) = static_filter(STrue(), S.alongs, axes(S.parent))
+@inline innersize(S::SlicedArray) = size(S.parent)[S.alongs]
+@inline inneraxes(S::SlicedArray) = axes(S.parent)[S.alongs]
 
 flatten(S::SlicedArray) = S.parent
 
 
 function mapslices(f, A::AbstractArray; dims::TupleN{StaticOrInt})
     S = slice(A, dims)
-    B = _alloc_keepdims(S, f(first(S)))
+    B = _alloc_mapslices(S, f(first(S)))
     @assert axes(S) == axes(B)
     for I in eachindex(S, B) # TODO start from second
         _unsafe_copy_inner!(B, f(S[I]), I)
@@ -312,7 +303,7 @@ end
     return B
 end
 
-function _alloc_keepdims(S::SlicedArray{<:Any,N,M}, b1) where {T,N,M}
+function _alloc_mapslices(S::SlicedArray{<:Any,N,M}, b1) where {T,N,M}
     innerax = _reshape_axes(axes(b1), Val(M))
     innersz = ntuple(i -> (Base.@_inline_meta; length(innerax[i])), Val(M))
     parentsz = static_merge(S.alongs, innersz, size(S))

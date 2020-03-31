@@ -19,6 +19,7 @@ const Idx = Union{Colon,Real,AbstractArray}
 
 include("viewtype.jl")
 include("cartesianindexer.jl")
+include("typedbool.jl")
 
 export innereltype, innerndims, inneraxes, innersize, innerlength
 include("functions.jl")

@@ -4,26 +4,28 @@ using Zygote
 
 using SpecialArrays: along2string
 using SpecialArrays: CartesianIndexer
+using SpecialArrays: tuple_map, True, False, TypedBool
+
 
 include("preamble.jl")
 
 
 const TEST_ALONGS = [
-    (static(true),),
-    (static(false),),
-    (static(true), static(true)),
-    (static(false), static(true)),
-    (static(false), static(false)),
+    (True(), ),
+    (False(), ),
+
+    (True(), True()),
+    (True(), False()),
+    (False(), True()),
+    (False(), False()),
 ]
 
-slicedims(al::TupleN{SBool}) = Tuple(i for i = 1:length(al) if unstatic(al[i]))
-
-function makedata(V::Type, al::TupleN{SBool})
+function makedata(V::Type, al::TupleN{TypedBool})
     L = length(al)
     pdims = testdims(L)
-    sdims = slicedims(al)
-    innersize = Tuple(pdims[i] for i in 1:L if unstatic(al[i]))
-    outersize = Tuple(pdims[i] for i in 1:L if !unstatic(al[i]))
+    sdims = findall(al)
+    innersize = pdims[al]
+    outersize = pdims[tuple_map(!, al)]
     M, N = length(innersize), length(outersize)
 
     flat = rand!(Array{V,L}(undef, pdims...))
@@ -70,7 +72,7 @@ showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
         @test typeof(slice(flat, sdims)) <: Expected
         @test typeof(slice(flat, sdims...)) <: Expected
 
-        I = map(a -> a isa STrue ? Colon() : *, al)
+        I = map(a -> a isa True ? Colon() : *, al)
         @test typeof(slice(flat, I...)) <: Expected
         @test_inferred slice(flat, I...)
     end
@@ -150,7 +152,7 @@ Adapt.adapt_storage(::Type{<:CartesianIndexer}, A) = CartesianIndexer(A)
 end
 
 @testset "Zygote" begin
-    data = makedata(Float64, (STrue(), SFalse(), STrue()))
+    data = makedata(Float64, (True(), False(), True()))
     x = rand!(zeros(last(data.innersize)))
     g1 = Zygote.gradient(x -> sum(sum(a -> a * x, data.nested)), x)
     g2 = Zygote.gradient(x -> sum(sum(a -> a * x, slice(data.flat, data.sdims))), x)
