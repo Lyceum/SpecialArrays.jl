@@ -27,7 +27,7 @@ end
 static_in(x::StaticOrInt, itr::TupleN{StaticOrInt}) = _static_in(x, itr)
 @pure function _static_in(x::StaticOrInt, itr::TupleN{StaticOrInt})
     for y in itr
-        unwrap(y) === unwrap(x) && return True() # TODO ==? unwrap?
+        unstatic(y) === unstatic(x) && return True() # TODO ==? unwrap?
     end
     return False()
 end
