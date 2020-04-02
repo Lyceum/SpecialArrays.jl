@@ -1,6 +1,10 @@
-module FlattenedArrayTest
+module TestFlattenedArray
+
+using Zygote
+
 
 include("preamble.jl")
+
 
 function makedata(V::Type, M::Integer, N::Integer)
     dims = testdims(M + N)
@@ -22,7 +26,7 @@ function makedata(V::Type, M::Integer, N::Integer)
     )
 end
 
-@testset "M = $M, N = $N, V = $V" for M = 1:2, N = 1:2, V in (Float64,)
+@testset "M = $M, N = $N, V = $V" for M in (0, 2), N = 1:2, V in (Float64,)
     @testset "constructors" begin
         data = makedata(V, M, N)
         Expected = FlattenedArray{V,M + N,M,typeof(data.nested),typeof(data.inneraxes)}
@@ -53,7 +57,13 @@ end
         F = flatten(data.nested)
         @test F.inneraxes === inneraxes(F) === inneraxes(data.nested)
         @test map(length, F.inneraxes) === innersize(F) === innersize(data.nested)
+        @test eltype(F) === innereltype(data.nested)
     end
+end
+
+@testset "flatten(flat)" begin
+    A = rand(10)
+    @test flatten(A) === A
 end
 
 @testset "aliasing" begin
