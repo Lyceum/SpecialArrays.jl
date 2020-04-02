@@ -224,6 +224,13 @@ function Base.append!(dest::ElasticArray, src::AbsArr)
     return dest
 end
 
+function Base.append!(dest::ElasticArray, iter)
+    for el in iter
+        append!(dest, el)
+    end
+    return dest
+end
+
 function Base.prepend!(dest::ElasticArray, src::AbsArr)
     if rem(length(eachindex(src)), dest.kernel_length) != 0
         throw(DimensionMismatch("Can't prepend, length of source array is incompatible"))
