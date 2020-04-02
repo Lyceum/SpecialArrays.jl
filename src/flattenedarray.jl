@@ -178,4 +178,7 @@ julia> B == reshape(hcat(B...), (2, 3, 2))
 true
 ```
 """
-flatten(A::AbsArr) = FlattenedArray(A)
+flatten(A::AbsArr) = _flatten(A, inneraxes(A), eltype(A))
+_flatten(A::AbsArr, inax::Tuple{}, ::Type{<:AbsArr{<:Any,0}}) = FlattenedArray(A, inax)
+_flatten(A::AbsArr, inax::Tuple, ::Type) = FlattenedArray(A, inax)
+_flatten(A::AbsArr, ::Tuple{}, ::Type) = A
