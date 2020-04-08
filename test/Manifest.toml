@@ -321,7 +321,7 @@ version = "0.1.1"
 
 [[LyceumDevTools]]
 deps = ["Base64", "BenchmarkTools", "Dates", "Distributed", "GitHub", "HTTP", "JuliaFormatter", "LibGit2", "LyceumBase", "LyceumCore", "MacroTools", "Markdown", "Parameters", "Pkg", "PkgTemplates", "Random", "Reexport", "Registrator", "RegistryTools", "Shapes", "Test"]
-git-tree-sha1 = "11e07d93fc2f8cc95ce2e3d58701e7c3cea65de7"
+git-tree-sha1 = "3ecb36e63d7925f2890e899fa8b7a4847429bf7c"
 repo-rev = "master"
 repo-url = "https://github.com/Lyceum/LyceumDevTools.jl.git"
 uuid = "fd23256c-5a67-41c4-8f5a-c8cf5526e505"
@@ -532,6 +532,12 @@ version = "0.3.1"
 [[SparseArrays]]
 deps = ["LinearAlgebra", "Random"]
 uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
+[[SpecialArrays]]
+deps = ["Adapt", "DocStringExtensions", "LyceumCore", "LyceumDevTools", "MacroTools", "Requires", "Shapes", "StaticNumbers", "UnsafeArrays", "Zygote"]
+path = ".."
+uuid = "dced3ab1-7816-4ad4-9c7c-956aa26e9cbf"
+version = "0.1.1"
 
 [[SpecialFunctions]]
 deps = ["OpenSpecFun_jll"]
