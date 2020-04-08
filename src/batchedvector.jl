@@ -1,4 +1,4 @@
-struct BatchedVector{T,P<:AbsVec} <: AbsVec{T}
+struct BatchedVector{T,P<:AbsVec} <: AbsVec{T} # TODO T<:AbsVec
     parent::P
     offsets::Vector{Int}
     @inline function BatchedVector{T,P}(parent, offsets) where {T,P<:AbsVec}

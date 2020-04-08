@@ -2,6 +2,6 @@ module TestSpecialArrays
 
 include("preamble.jl")
 
-@includetests ProgressTestSet "SpecialArrays"
+@includetests "SpecialArrays"
 
 end # module
