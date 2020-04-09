@@ -40,7 +40,7 @@ end
         @test typeof(FlattenedArray(data.nested, data.inneraxes)) == Expected
         @test_inferred FlattenedArray(data.nested, data.inneraxes)
 
-        @test flatten(data.nested) === FlattenedArray(data.nested)
+        @test flatview(data.nested) === FlattenedArray(data.nested)
     end
 
     let V = V, M = M, N = N
@@ -54,23 +54,23 @@ end
 
     @testset "extra" begin
         data = makedata(V, M, N)
-        F = flatten(data.nested)
+        F = flatview(data.nested)
         @test F.inneraxes === inneraxes(F) === inneraxes(data.nested)
         @test map(length, F.inneraxes) === innersize(F) === innersize(data.nested)
         @test eltype(F) === innereltype(data.nested)
     end
 end
 
-@testset "flatten(flat)" begin
+@testset "flatview(flat)" begin
     A = rand(10)
-    @test flatten(A) === A
+    @test flatview(A) === A
 end
 
 @testset "aliasing" begin
     x1 = rand(2, 3)
     x2 = rand(2, 3)
     x3 = rand(2, 3)
-    F = flatten([x1, x2])
+    F = flatview([x1, x2])
 
     @test dataids(F) === (dataids(F.parent)..., Iterators.flatten(dataids.(F.parent))...)
 
@@ -78,8 +78,8 @@ end
     @test !mightalias(F, rand(2, 3))
     @test mightalias(x1, F)
     @test !mightalias(rand(2, 3), F)
-    @test mightalias(F, flatten([x1, x3]))
-    @test !mightalias(F, flatten([x3, x3]))
+    @test mightalias(F, flatview([x1, x3]))
+    @test !mightalias(F, flatview([x3, x3]))
 
     let F2 = unalias(x1, F)
         @test F2.parent[1] !== x1 && F2.parent[1] == x1
@@ -93,9 +93,9 @@ end
     data = makedata(Float64, 1, 1)
     x = rand!(zeros(last(data.outersize)))
     g1 = Zygote.gradient(x -> sum(hcat(data.nested...) * x), x)
-    g2 = Zygote.gradient(x -> sum(flatten(data.nested) * x), x)
+    g2 = Zygote.gradient(x -> sum(flatview(data.nested) * x), x)
     @test g1 == g2
-    @test_skip @test_inferred Zygote.gradient(A -> sum(flatten(A) * x), data.nested)
+    @test_skip @test_inferred Zygote.gradient(A -> sum(flatview(A) * x), data.nested)
 end
 
 end # module

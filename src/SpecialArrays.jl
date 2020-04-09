@@ -27,7 +27,7 @@ include("functions.jl")
 export SlicedArray, slice
 include("slicedarray.jl")
 
-export FlattenedArray, flatten
+export FlattenedArray, flatview
 include("flattenedarray.jl")
 
 export ElasticArray

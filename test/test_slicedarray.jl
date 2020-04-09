@@ -94,7 +94,7 @@ showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
     )
         data = makedata(V, al)
         B1 = mapslices(f, data.flat, dims = data.sdims)
-        B2 = flatten(SpecialArrays.mapslices(f, data.flat, dims = data.sdims))
+        B2 = flatview(SpecialArrays.mapslices(f, data.flat, dims = data.sdims))
         @test B1 == B2
         @test_inferred SpecialArrays.mapslices(f, data.flat, dims = data.static_sdims)
     end
@@ -103,8 +103,8 @@ showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
         data = makedata(V, al)
         A = SlicedArray(data.flat, al)
 
-        @test flatten(A) === A.parent
-        @test_inferred flatten(A)
+        @test flatview(A) === A.parent
+        @test_inferred flatview(A)
 
         @test innersize(A) == size(first(A))
         @test_inferred innersize(A)

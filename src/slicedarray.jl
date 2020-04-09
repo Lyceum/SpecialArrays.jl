@@ -272,7 +272,7 @@ along2string(::False) = '*'
 @inline innersize(S::SlicedArray) = size(S.parent)[S.alongs]
 @inline inneraxes(S::SlicedArray) = axes(S.parent)[S.alongs]
 
-flatten(S::SlicedArray) = S.parent
+flatview(S::SlicedArray) = S.parent
 
 
 function mapslices(f, A::AbstractArray; dims::TupleN{StaticOrInt})

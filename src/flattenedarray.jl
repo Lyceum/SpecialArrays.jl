@@ -138,7 +138,7 @@ end
 
 
 function Base.showarg(io::IO, A::FlattenedArray, toplevel)
-    print(io, "flatten(")
+    print(io, "flatview(")
     Base.showarg(io, parent(A), false)
     print(io, ')')
     toplevel && print(io, " with eltype ", eltype(A))
@@ -153,7 +153,7 @@ end
 @inline inneraxes(F::FlattenedArray) = F.inneraxes
 
 """
-    flatten(A::AbstractArray{<:AbstractArray{V,M},N})
+    flatview(A::AbstractArray{<:AbstractArray{V,M},N})
 
 Return a `M+N`-dimensional flattened view of `A`. Throws an error if the elements of `A` do not
 have equal size. If `A` is not a nested array, the return value is `A` itself.
@@ -164,8 +164,8 @@ julia> A = [reshape(Vector(1:6), (2, 3)), reshape(Vector(7:12), (2, 3))]
  [1 3 5; 2 4 6]
  [7 9 11; 8 10 12]
 
-julia> B = flatten(A)
-2×3×2 flatten(::Array{Array{Int64,2},1}) with eltype Int64:
+julia> B = flatview(A)
+2×3×2 flatview(::Array{Array{Int64,2},1}) with eltype Int64:
 [:, :, 1] =
  1  3  5
  2  4  6
@@ -178,7 +178,7 @@ julia> B == reshape(hcat(B...), (2, 3, 2))
 true
 ```
 """
-flatten(A::AbsArr) = _flatten(A, inneraxes(A), eltype(A))
-_flatten(A::AbsArr, inax::Tuple{}, ::Type{<:AbsArr{<:Any,0}}) = FlattenedArray(A, inax)
-_flatten(A::AbsArr, inax::Tuple, ::Type) = FlattenedArray(A, inax)
-_flatten(A::AbsArr, ::Tuple{}, ::Type) = A
+flatview(A::AbsArr) = _flatview(A, inneraxes(A), eltype(A))
+_flatview(A::AbsArr, inax::Tuple{}, ::Type{<:AbsArr{<:Any,0}}) = FlattenedArray(A, inax)
+_flatview(A::AbsArr, inax::Tuple, ::Type) = FlattenedArray(A, inax)
+_flatview(A::AbsArr, ::Tuple{}, ::Type) = A
