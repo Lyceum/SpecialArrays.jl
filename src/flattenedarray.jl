@@ -182,3 +182,10 @@ flatview(A::AbsArr) = _flatview(A, inneraxes(A), eltype(A))
 _flatview(A::AbsArr, inax::Tuple{}, ::Type{<:AbsArr{<:Any,0}}) = FlattenedArray(A, inax)
 _flatview(A::AbsArr, inax::Tuple, ::Type) = FlattenedArray(A, inax)
 _flatview(A::AbsArr, ::Tuple{}, ::Type) = A
+
+"""
+    $(TYPEDSIGNATURES)
+
+Like [`flatview`](@ref) but returns a new array.
+"""
+flatten(A::AbsArr) = copy(flatview(A))

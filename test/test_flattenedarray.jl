@@ -58,12 +58,16 @@ end
         @test F.inneraxes === inneraxes(F) === inneraxes(data.nested)
         @test map(length, F.inneraxes) === innersize(F) === innersize(data.nested)
         @test eltype(F) === innereltype(data.nested)
+
+        @test flatten(data.nested) == flatview(data.nested)
     end
 end
 
-@testset "flatview(flat)" begin
+@testset "{flatview,flatten}(flat)" begin
     A = rand(10)
     @test flatview(A) === A
+    @test flatten(A) == A
+    @test flatten(A) !== A
 end
 
 @testset "aliasing" begin
