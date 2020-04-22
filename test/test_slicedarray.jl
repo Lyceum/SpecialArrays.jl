@@ -1,7 +1,5 @@
 module TestSlicedArray
 
-using Zygote
-
 using SpecialArrays: along2string
 using SpecialArrays: CartesianIndexer
 using SpecialArrays: tuple_map, True, False, TypedBool
@@ -151,16 +149,5 @@ Adapt.adapt_storage(::Type{<:CartesianIndexer}, A) = CartesianIndexer(A)
     @test parent(B) isa CartesianIndexer
 end
 
-@testset "Zygote" begin
-    data = makedata(Float64, (True(), False(), True()))
-    x = rand!(zeros(last(data.innersize)))
-    g1 = Zygote.gradient(x -> sum(sum(a -> a * x, data.nested)), x)
-    g2 = Zygote.gradient(x -> sum(sum(a -> a * x, slice(data.flat, data.sdims))), x)
-    @test g1 == g2
-    @test_skip @test_inferred Zygote.gradient(
-        x -> sum(sum(a -> a * x, slice(data.flat, data.static_sdims))),
-        x,
-    )
-end
 
 end # module

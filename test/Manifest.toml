@@ -279,6 +279,11 @@ git-tree-sha1 = "a6c9c29d1dfab0f62b617064cca73e1506e599ae"
 uuid = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 version = "0.3.9"
 
+[[JuliennedArrays]]
+path = "/home/colinxs/workspace/juliadev/JuliennedArrays"
+uuid = "5cadff95-7770-533d-a838-a1bf817ee6e0"
+version = "0.2.2"
+
 [[Lazy]]
 deps = ["MacroTools"]
 git-tree-sha1 = "0bd934e15f5df97414aa81abf74ba8a2d5042964"

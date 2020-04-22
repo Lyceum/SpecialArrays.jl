@@ -86,10 +86,16 @@ julia> innersize(B)
 (2,)
 ```
 """
-@inline function slice(A::AbsArr, I::Vararg{Union{Colon,typeof(*)},L}) where {L}
+@inline function slice(A::AbsArr, I::NTuple{L,Union{Colon,typeof(*)}}) where {L}
     alongs = ntuple(i -> (Base.@_inline_meta; I[i] === Colon() ? True() : False()), Val(L))
     SlicedArray(reshape(A, Val(L)), alongs)
 end
+@inline slice(A::AbsArr, I::Vararg{Union{Colon,typeof(*)},L}) where {L} = slice(A, I)
+
+@inline function slice(A::AbsArr{<:Any,L}, I::NTuple{L,TypedBool}) where {L}
+    SlicedArray(A, I)
+end
+@inline slice(A::AbsArr{<:Any,L}, I::Vararg{TypedBool,L}) where {L} = slice(A, I)
 
 """
     slice(A::AbstractArray, alongs::Tuple)
@@ -272,7 +278,7 @@ along2string(::False) = '*'
 @inline innersize(S::SlicedArray) = size(S.parent)[S.alongs]
 @inline inneraxes(S::SlicedArray) = axes(S.parent)[S.alongs]
 
-flatview(S::SlicedArray) = S.parent
+#flatview(S::SlicedArray) = S.parent
 
 
 function mapslices(f, A::AbstractArray; dims::TupleN{StaticOrInt})

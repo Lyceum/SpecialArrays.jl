@@ -1,8 +1,5 @@
 module TestFlattenedArray
 
-using Zygote
-
-
 include("preamble.jl")
 
 
@@ -93,13 +90,5 @@ end
     end
 end
 
-@testset "Zygote" begin
-    data = makedata(Float64, 1, 1)
-    x = rand!(zeros(last(data.outersize)))
-    g1 = Zygote.gradient(x -> sum(hcat(data.nested...) * x), x)
-    g2 = Zygote.gradient(x -> sum(flatview(data.nested) * x), x)
-    @test g1 == g2
-    @test_skip @test_inferred Zygote.gradient(A -> sum(flatview(A) * x), data.nested)
-end
 
 end # module

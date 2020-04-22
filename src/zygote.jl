@@ -1,7 +1,7 @@
 Zygote.@nograd innereltype, innerndims, inneraxes, innersize, innerlength
 
 Zygote.@adjoint function slice(A::AbsArr, along...)
-    slice(A, along...), Δ -> (flatview(Δ), map(_ -> nothing, along)...)
+    slice(A, along...), Δ -> (@info size(Δ) size(first(Δ)), typeof(Δ); (flatview(Δ), map(_ -> nothing, along)...))
 end
 
 Zygote.@adjoint function flatview(A::AbsSimilarNestedArr{<:Any,M}) where {M}
