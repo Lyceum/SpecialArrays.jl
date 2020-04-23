@@ -3,6 +3,11 @@ struct False end
 const TypedBool = Union{True, False}
 
 const GlobBool = Union{Colon, typeof(*)}
+
+const BoolLike = Union{TypedBool, GlobBool}
+
+canonify(x::True) = x
+canonify(x::False) = x
 @pure canonify(::Colon) = True()
 @pure canonify(::typeof(*)) = False()
 

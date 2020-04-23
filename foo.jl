@@ -5,16 +5,34 @@ using .SpecialArrays
 using .SpecialArrays: True, False, TypedBool, tuple_map, front, tail
 using BenchmarkTools
 using LyceumCore
+using Random
 
-flat = rand(2,3,4)
-alongs = (True(), True(), False())
-A = slice(flat, alongs)
-B = [Array(a) for a in A]
-B2 = deepcopy(B)
-F = flatview(B)
-F2 = flatview(B2)
+function comp(A, B, I, J)
+    for (i, j) in zip(I, J)
+        @assert A[i] == B[j] (i, j)
+    end
+end
+iscont(S::SlicedArray{T,N,M,P,A,Fast}) where {T,N,M,P,A,Fast} = Fast
 
-x = B[end]
+flat = reshape(collect(1:(1*2*3)), (1,2,3))
+alongs = (:,:,*)
+#alongs = (*,:,*)
+
+S1 = slice(copy(flat), alongs)
+S2 = slice(rand!(similar(flat)), alongs)
+copyto!(S2, 1, S1, 1, length(S2))
+comp(S2, S1, 1:length(S2), 1:length(S1))
+
+S1 = slice(copy(flat), alongs)
+S2 = slice(rand!(similar(flat)), alongs)
+copyto!(S2, 1, S1, 2, 2)
+comp(S2, S1, 1:2, 2:3)
+
+#flat = rand(2,3,100)
+#S1 = slice(copy(flat), alongs)
+#S2 = slice(rand!(similar(flat)), alongs)
+#@btime copyto!($S1, 1, $S2, 1, length($S1))
+#@btime SpecialArrays.mycopyto!($S1, 1, $S2, 1, length($S1))
 
 #@assert !iselastic((True(), True()))
 #@assert iselastic((True(), False()))
@@ -30,11 +48,6 @@ x = B[end]
 #@assert !iselastic((False(), False(), True()))
 #@assert !iselastic((False(), False(), False()))
 
-
-flat = rand(2,3,4)
-al = (:,*,:)
-S = slice(flat, al)
-nested = [Array(el) for el in S]
 
 end # module
 nothing

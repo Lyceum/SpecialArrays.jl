@@ -1,9 +1,13 @@
-struct SlicedArray{T,N,M,P,A} <: AbstractArray{T,N}
+struct SlicedArray{T,N,M,P,A,Fast} <: AbstractArray{T,N}
     parent::P
     alongs::A
-    @inline function SlicedArray{T,N,M,P,A}(parent::AbstractArray{<:Any,L}, alongs::NTuple{L,TypedBool}) where {T,N,M,P,A,L}
+    stride1::Int
+    offset1::Int
+    ellength::Int
+    @inline function SlicedArray{T,N,M,P,A,Fast}(parent::AbstractArray{<:Any,L}, alongs::NTuple{L,TypedBool}, stride1, offset1, ellength) where {T,N,M,P,A,Fast,L}
         # TODO check parameters
-        new(parent, alongs)
+        #Fast && @assert stride1 == 1
+        new(parent, alongs, stride1, offset1, ellength)
     end
 end
 
@@ -15,7 +19,12 @@ end
     I = tuple_map(first, outaxes)
     J = parentindices(axes(parent), alongs, I)
     T = viewtype(parent, J)
-    SlicedArray{T,N,L-N,typeof(parent),typeof(alongs)}(parent, alongs)
+    stride1 = Base.compute_stride1(parent, J)
+    offset1 = Base.compute_offset1(parent, stride1, J)
+    ellength = length(axes(parent)[alongs])
+    #Fast = iscontiguous(alongs)
+    Fast = Base.viewindexing(J) === IndexLinear()
+    SlicedArray{T,N,L-N,typeof(parent),typeof(alongs), Fast}(parent, alongs, stride1, offset1, ellength)
 end
 
 @inline function SlicedArray(parent::AbstractArray{<:Any,L}, alongs::NTuple{L,TypedBool}) where {L}
@@ -31,39 +40,56 @@ Return an array whose elements are views into `A` along the dimensions `alongs`.
 `alongs` can be specified in the following ways:
 **TODO**
 """
-@inline function slice(A::AbstractArray{<:Any,L}, alongs::NTuple{L,TypedBool}) where {L}
-    SlicedArray(A, alongs)
+@inline function slice(A::AbstractArray, alongs...)
+    SlicedArray(A, toalongs(axes(A), alongs...))
 end
 
-@inline function slice(S::SlicedArray{<:Any,N}, alongs::NTuple{N,TypedBool}) where {N}
-    SlicedArray(S.parent, setindex(S.alongs, alongs, tuple_map(!, S.alongs)))
+@inline function slice(S::SlicedArray, alongs...)
+    mergedalongs = setindex(S.alongs, toalongs(axes(A), alongs...), tuple_map(!, S.alongs))
+    SlicedArray(S.parent, mergedalongs)
 end
 
-@inline function slice(A::AbstractArray{<:Any,L}, alongs::NTuple{L,GlobBool}) where {L}
-    SlicedArray(A, tuple_map(canonify, alongs))
+# convert `alongs` to the canonical TypedBool form
+@inline function toalongs(paxes::NTuple{L,Any}, alongs::NTuple{L,BoolLike}) where {L}
+    tuple_map(canonify, alongs)
 end
-
-@inline function slice(A::AbstractArray{<:Any,L}, alongs::TupleN{Integer}) where {L}
-    SlicedArray(A, ntuple(dim -> (@_inline_meta; static_in(dim, alongs)), Val(L)))
+@inline function toalongs(paxes::NTuple{L,Any}, alongs::TupleN{Integer}) where {L}
+    ntuple(dim -> (@_inline_meta; static_in(dim, alongs)), Val(L))
 end
-
-@inline function slice(A::AbstractArray{<:Any,L}, alongs::Tuple{}) where {L}
-    SlicedArray(A, ntuple(_ -> (@_inline_meta; False()), Val(L)))
+@inline function toalongs(paxes::NTuple{L,Any}, ::Tuple{}) where {L}
+    ntuple(_ -> (@_inline_meta; False()), Val(L))
 end
-
-@inline function slice(A::AbstractArray{<:Any,L}, alongs::Val{M}) where {L,M}
-    SlicedArray(A, (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(L-M))...))
+@inline toalongs(paxes::Tuple) = toalongs(paxes, ())
+@inline function toalongs(paxes::NTuple{L,Any}, alongs::Val{N}) where {L,N}
+    (ntuple(_ -> True(), Val(L-N))..., ntuple(_ -> False(), Val(N))...)
 end
-
-@inline slice(A::AbstractArray, alongs::TypedBool...) = slice(A, alongs)
-@inline slice(A::AbstractArray, alongs::GlobBool...) = slice(A, alongs)
-@inline slice(A::AbstractArray, alongs::Integer...) = slice(A, alongs)
-@inline slice(A::AbstractArray) = slice(A, ())
 
 
 ####
 #### Core Array Interface
 ####
+
+const FastSlicedArray{T,N,M,P,A} = SlicedArray{T,N,M,P,A,true}
+
+#function mycopyto!(dest::FastSlicedArray{T,N}, doffs::Integer, src::FastSlicedArray{T,N}, soffs::Integer, n::Integer) where {T,N}
+function Base.copyto!(dest::FastSlicedArray{T,N}, doffs::Integer, src::FastSlicedArray{T,N}, soffs::Integer, n::Integer) where {T,N}
+    n == 0 && return dest
+    n > 0 || Base._throw_argerror()
+    #@info soffs < 1
+    #@info doffs < 1
+    #@info soffs+n-1 > length(src)
+    #@info doffs+n-1 > length(dest)
+    if soffs < 1 || doffs < 1 || soffs+n-1 > length(src) || doffs+n-1 > length(dest)
+        throw(BoundsError())
+    end
+    @assert dest.ellength == src.ellength
+    _doffs = dest.offset1 + (dest.ellength * doffs - 1)
+    _soffs = src.offset1 + (src.ellength * soffs - 1)
+    @info "" dest.offset1 dest.stride1 _doffs _soffs
+    #copyto!(dest.parent, dest.offset1 + doffs, src.parent, src.offset1 + soffs, dest.ellength * n)
+    copyto!(dest.parent, _doffs, src.parent, _soffs, dest.ellength * n)
+    return dest
+end
 
 @inline Base.axes(S::SlicedArray) = axes(S.parent)[tuple_map(!, S.alongs)]
 
