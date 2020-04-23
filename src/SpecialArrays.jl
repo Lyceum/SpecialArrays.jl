@@ -4,6 +4,7 @@ using Adapt
 
 using Base: @propagate_inbounds, @pure, @_inline_meta, require_one_based_indexing
 using Base.MultiplicativeInverses: SignedMultiplicativeInverse
+using Base: setindex
 
 using DocStringExtensions
 using MacroTools: @forward

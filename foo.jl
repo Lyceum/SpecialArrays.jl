@@ -1,8 +1,10 @@
-using SpecialArrays
-using SpecialArrays: True, False, TypedBool, tuple_map, front, tail
+module M
+
+include("src/SpecialArrays.jl")
+using .SpecialArrays
+using .SpecialArrays: True, False, TypedBool, tuple_map, front, tail
 using BenchmarkTools
 using LyceumCore
-
 
 flat = rand(2,3,4)
 alongs = (True(), True(), False())
@@ -34,4 +36,5 @@ al = (:,*,:)
 S = slice(flat, al)
 nested = [Array(el) for el in S]
 
+end # module
 nothing

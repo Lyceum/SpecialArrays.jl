@@ -1,8 +1,11 @@
 struct True end
-
 struct False end
-
 const TypedBool = Union{True, False}
+
+const GlobBool = Union{Colon, typeof(*)}
+@pure canonify(::Colon) = True()
+@pure canonify(::typeof(*)) = False()
+
 
 @pure Base.:(!)(::False) = True()
 @pure Base.:(!)(::True) = False()

@@ -55,53 +55,53 @@ end
 
 showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
 @testset "al = $(showalongs(al)), V = $V" for al in TEST_ALONGS, V in (Float64,)
-    #@testset "constructors" begin
-    #    @unpack flat, sdims, static_sdims, M, N = makedata(V, al)
-    #    Expected = SlicedArray{<:AbsArr{V,M},N,M,Array{V,M + N},typeof(al)}
+    @testset "constructors" begin
+        @unpack flat, sdims, static_sdims, M, N = makedata(V, al)
+        Expected = SlicedArray{<:AbsArr{V,M},N,M,Array{V,M + N},typeof(al)}
 
-    #    @test typeof(SlicedArray(flat, al)) <: Expected
-    #    @test_inferred SlicedArray(flat, al)
+        @test typeof(SlicedArray(flat, al)) <: Expected
+        @test_inferred SlicedArray(flat, al)
 
-    #    @test typeof(slice(flat, static_sdims)) <: Expected
-    #    @test_inferred slice(flat, static_sdims)
-    #    @test typeof(slice(flat, static_sdims...)) <: Expected
-    #    @test_inferred slice(flat, static_sdims...)
+        @test typeof(slice(flat, static_sdims)) <: Expected
+        @test_inferred slice(flat, static_sdims)
+        @test typeof(slice(flat, static_sdims...)) <: Expected
+        @test_inferred slice(flat, static_sdims...)
 
-    #    @test typeof(slice(flat, sdims)) <: Expected
-    #    @test typeof(slice(flat, sdims...)) <: Expected
+        @test typeof(slice(flat, sdims)) <: Expected
+        @test typeof(slice(flat, sdims...)) <: Expected
 
-    #    I = map(a -> a isa True ? Colon() : *, al)
-    #    @test typeof(slice(flat, I...)) <: Expected
-    #    @test_inferred slice(flat, I...)
-    #end
-
-    #let V = V, al = al
-    #    test_array_AB() do
-    #        data = makedata(V, al)
-    #        A = SlicedArray(data.flat, al)
-    #        B = data.nested
-    #        return A, B
-    #    end
-    #end
-
-    #@testset "mapslices ($name)" for (name, f) in (
-    #    ("identity", identity),
-    #    ("sum", el -> sum(el)),
-    #    ("reshape(..., reverse(dims))", el -> el isa AbsArr ? reshape(el, reverse(size(el))) : el),
-    #    ("reshape(..., Val(1))", el -> el isa AbsArr ? reshape(el, Val(1)) : el),
-    #)
-    #    data = makedata(V, al)
-    #    B1 = mapslices(f, data.flat, dims = data.sdims)
-    #    B2 = SpecialArrays.mapslices(f, data.flat, dims = data.sdims)
-    #    @test B1 == B2
-    #    @test_inferred SpecialArrays.mapslices(f, data.flat, dims = data.static_sdims)
-    #end
-
-    @testset "align" begin
-        data = makedata(V, al)
-        @test SpecialArrays.align(slice(data.flat, al), al) === data.flat
-        @test SpecialArrays.align(data.nested, al) == data.flat
+        I = map(a -> a isa True ? Colon() : *, al)
+        @test typeof(slice(flat, I...)) <: Expected
+        @test_inferred slice(flat, I...)
     end
+
+    let V = V, al = al
+        test_array_AB() do
+            data = makedata(V, al)
+            A = SlicedArray(data.flat, al)
+            B = data.nested
+            return A, B
+        end
+    end
+
+    @testset "mapslices ($name)" for (name, f) in (
+        ("identity", identity),
+        ("sum", el -> sum(el)),
+        ("reshape(..., reverse(dims))", el -> el isa AbsArr ? reshape(el, reverse(size(el))) : el),
+        ("reshape(..., Val(1))", el -> el isa AbsArr ? reshape(el, Val(1)) : el),
+    )
+        data = makedata(V, al)
+        B1 = mapslices(f, data.flat, dims = data.sdims)
+        B2 = SpecialArrays.mapslices(f, data.flat, dims = data.sdims)
+        @test B1 == B2
+        @test_inferred SpecialArrays.mapslices(f, data.flat, dims = data.static_sdims)
+    end
+
+    #@testset "align" begin
+    #    data = makedata(V, al)
+    #    @test SpecialArrays.align(slice(data.flat, al), al) === data.flat
+    #    @test SpecialArrays.align(data.nested, al) == data.flat
+    #end
 
     @testset "extra" begin
         data = makedata(V, al)
@@ -116,20 +116,6 @@ showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
         @test inneraxes(A) == axes(first(A))
         @test_inferred inneraxes(A)
         @test_noalloc innersize($A)
-    end
-end
-
-@testset "slice w/ reshape" begin
-    flat = rand(2, 3, 4)
-    let I = (:, *, :, *, :)
-        A = slice(flat, I...)
-        @test A isa SlicedArray{<:AbsArr{Float64,3},2,3,Array{Float64,5},typeof(A.alongs)}
-        @test_inferred slice(flat, I...)
-    end
-    let I = (:, *)
-        A = slice(flat, I...)
-        @test A isa SlicedArray{<:AbsArr{Float64,1},1,1,Array{Float64,2},typeof(A.alongs)}
-        @test_inferred slice(flat, I...)
     end
 end
 
