@@ -36,7 +36,7 @@ end
         @test_inferred innereltype(A)
         @test innereltype(typeof(A)) === V
         @test_inferred innereltype(typeof(A))
-        @test innereltype(B) === Any
+        @test innereltype(B) === V
 
         @test innerndims(A) == M
         @test_inferred innerndims(A)

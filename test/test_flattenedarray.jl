@@ -26,7 +26,7 @@ end
 @testset "M = $M, N = $N, V = $V" for M in (0, 2), N = 1:2, V in (Float64,)
     @testset "constructors" begin
         data = makedata(V, M, N)
-        Expected = FlattenedArray{V,M + N,M,typeof(data.nested),typeof(data.inneraxes)}
+        Expected = FlattenedArray{V,M+N,M,N,typeof(data.nested),typeof(data.inneraxes)}
 
         @test typeof(Expected(data.nested, data.inneraxes)) == Expected
         @test_inferred Expected(data.nested, data.inneraxes)
@@ -77,16 +77,21 @@ end
 
     @test mightalias(F, x1)
     @test !mightalias(F, rand(2, 3))
+
     @test mightalias(x1, F)
     @test !mightalias(rand(2, 3), F)
+
     @test mightalias(F, flatview([x1, x3]))
     @test !mightalias(F, flatview([x3, x3]))
 
     let F2 = unalias(x1, F)
-        @test F2.parent[1] !== x1 && F2.parent[1] == x1
-        @test F2.parent[2] === x2
-        @test F2 == F
-        @test !(mightalias(x1, F2) && mightalias(F2, x1))
+        @test !mightalias(x1, F2)
+        @test !mightalias(F2, x1)
+        @test F2.parent == F.parent
+        @test F2.parent !== F.parent
+        @test all(zip(F2.parent, F.parent)) do (f2, f)
+            f2 !== f
+        end
     end
 end
 

@@ -87,7 +87,7 @@ julia> innersize(B)
 ```
 """
 @inline function slice(A::AbsArr, I::NTuple{L,Union{Colon,typeof(*)}}) where {L}
-    alongs = ntuple(i -> (Base.@_inline_meta; I[i] === Colon() ? True() : False()), Val(L))
+    alongs = ntuple(i -> (@_inline_meta; I[i] === Colon() ? True() : False()), Val(L))
     SlicedArray(reshape(A, Val(L)), alongs)
 end
 @inline slice(A::AbsArr, I::Vararg{Union{Colon,typeof(*)},L}) where {L} = slice(A, I)
@@ -146,6 +146,12 @@ end
     SlicedArray(A, ntuple(_ -> (@_inline_meta; False()), Val(L)))
 end
 @inline slice(A::AbsArr) = slice(A, ())
+
+
+function slice(A::AbstractArray{<:Any,L}, ::Val{M}) where {L,M}
+    alongs = (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(L-M))...)
+    SlicedArray(A, alongs)
+end
 
 
 ####
@@ -271,6 +277,22 @@ along2string(::True) = ':'
 along2string(::False) = '*'
 
 
+# returns true iff any number of True's followed by any number of False's
+iscontiguous(alongs::Tuple{True}) = true
+iscontiguous(alongs::Tuple{False}) = true
+iscontiguous(alongs::Tuple{True, Vararg{False}}) = true
+iscontiguous(alongs::Tuple{True, Vararg{True}}) = true
+iscontiguous(alongs::Tuple{False, Vararg{False}}) = true
+iscontiguous(alongs::Tuple{False, Vararg{TypedBool}}) = false
+iscontiguous(alongs::Tuple{True, Vararg{TypedBool}}) = iscontiguous(tail(alongs))
+
+
+## returns true iff alongs[1:end-1] are True and alongs[end] is False
+#iselastic(alongs::TupleN{TypedBool}) = _iselastic(front(alongs), last(alongs))
+#_iselastic(alongs::TupleN{True}, ::False) = true
+#_iselastic(alongs::TupleN{TypedBool}, ::TypedBool) = false
+
+
 #####
 ##### Extra
 #####
@@ -278,7 +300,36 @@ along2string(::False) = '*'
 @inline innersize(S::SlicedArray) = size(S.parent)[S.alongs]
 @inline inneraxes(S::SlicedArray) = axes(S.parent)[S.alongs]
 
-#flatview(S::SlicedArray) = S.parent
+flatview(S::SlicedArray) = iscontiguous(S.alongs) ? S.parent : FlattenedArray(S)
+
+# align(slice(A, al), al) can just return the parent
+align(S::SlicedArray{<:Any,<:Any,<:Any,<:Any,A}, alongs::A) where {A<:TupleN{TypedBool}} = S.parent
+
+function align(A::AbstractArrayOfArrays, alongs::NTuple{L,TypedBool}) where {L}
+    if innerndims(A) != static_sum(alongs)
+        throw(ArgumentError("Must specify exactly M dimensions to be taken up by the inner arrays"))
+    end
+    dims = ntuple(identity, Val(L))
+    permuted_dims = (dims[alongs]..., dims[tuple_map(!, alongs)]...)
+    return PermutedDimsArray(flatview(A), permuted_dims)
+end
+align(A::AbstractArrayOfArrays, alongs::TypedBool...) = align(A, alongs)
+
+@inline function align(A::AbstractArrayOfArrays, alongs::NTuple{L,Union{Colon,typeof(*)}}) where {L}
+    align(A, ntuple(i -> (@_inline_meta; alongs[i] === Colon() ? True() : False()), Val(L)))
+end
+@inline align(A::AbstractArrayOfArrays, alongs::Vararg{Union{Colon,typeof(*)}}) = align(A, alongs)
+
+@inline function align(A::AbstractArrayOfArrays, alongs::NTuple{L,Integer}) where {L}
+    align(A, ntuple(dim -> (@_inline_meta; static_in(dim, alongs)), Val(L)))
+end
+@inline align(A::AbstractArrayOfArrays, alongs::Integer...) = align(A, alongs)
+
+
+function align(A::AbstractArrayOfArrays, ::Val{M}) where {M}
+    alongs = (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(ndims(A)))...)
+    align(A, alongs)
+end
 
 
 function mapslices(f, A::AbstractArray; dims::TupleN{StaticOrInt})
@@ -288,7 +339,7 @@ function mapslices(f, A::AbstractArray; dims::TupleN{StaticOrInt})
     for I in eachindex(S, B) # TODO start from second
         _unsafe_copy_inner!(B, f(S[I]), I)
     end
-    return B
+    return B.parent
 end
 
 @inline _unsafe_copy_inner!(B::AbsArr, b, I) = @inbounds B[I] = b

@@ -12,10 +12,15 @@ using Shapes
 using StaticNumbers
 using UnsafeArrays
 
+# TODO This is an abstract type in ArraysOfArrays
+const AbstractArrayOfSimilarArrays{V,M,N} = AbstractArray{<:AbstractArray{V,M},N}
+const AbstractArrayOfArrays{N} = AbstractArray{<:AbstractArray}
 
-const Idx = Union{Colon,Real,AbstractArray}
+const TupleN{T,N} = NTuple{N,T}
 
-include("util.jl")
+const Idx = Union{Colon,Real,AbstractArray} # TODO
+
+include("compat.jl")
 include("viewtype.jl")
 include("cartesianindexer.jl")
 include("typedbool.jl")

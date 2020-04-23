@@ -60,6 +60,8 @@ function _setindex(::Tuple{}, ::Tuple, ::Tuple{})
     throw(DimensionMismatch("Cannot assign more values than indices"))
 end
 
+@inline static_sum(t::TupleN{TypedBool}) = length(t[t])
+
 
 @inline tuple_map(f::F, t::NTuple{N,Any}) where {F,N} = ntuple(i -> (@_inline_meta; f(t[i])), Val(N))
 

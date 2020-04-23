@@ -3,9 +3,11 @@
     innereltype(A::AbstractArray)
 
 Returns the common `eltype` of the elements of `A`.
+Throws an error if the elements of `A` do not have equal element types.
 """
-innereltype(::Type{A}) where {A<:AbsArr} = eltype(eltype(A))
-innereltype(A::AbsArr) = eltype(eltype(A))
+innereltype(::Type{<:AbstractArrayOfSimilarArrays{V}}) where {V} = V
+innereltype(A::AbstractArrayOfSimilarArrays) = innereltype(typeof(A))
+innereltype(A::AbsArr) = _scan_inner(eltype, A)
 
 
 """
@@ -15,9 +17,8 @@ innereltype(A::AbsArr) = eltype(eltype(A))
 Returns the common dimensionality of the elements of `A`.
 Throws an error if the elements of `A` do not have equal dimensionality.
 """
-innerndims(::Type{<:AbsArr{<:AbsArr{<:Any,N}}}) where {N} = N
-innerndims(A::AbsArr{<:AbsArr{<:Any,N}}) where {N} = N
-# Unlike innereltype which defaults to Any if eltype(A) isa UnionAll there is no good default for N
+innerndims(::Type{<:AbstractArrayOfSimilarArrays{<:Any,M}}) where {M} = M
+innerndims(A::AbstractArrayOfSimilarArrays) = innerndims(typeof(A))
 innerndims(A::AbsArr) = _scan_inner(ndims, A)
 
 
@@ -65,8 +66,8 @@ function _scan_inner(f::F, A::AbsArr) where {F}
         throw(ArgumentError("Cannot apply $f to an empty array"))
     else
         x = f(first(A))
-        for a in A
-            f(a) == x || error("The element arrays of A do not have matching $f")
+        for I in eachindex(A)[2:end]
+            f(A[I]) == x || error("The element arrays of A do not have matching $f")
         end
         return x
     end
