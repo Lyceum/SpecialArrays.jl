@@ -1,76 +1,60 @@
+# Guidelines for the scary usage of @pure:
+# Based this conversation:https://discourse.julialang.org/t/pure-macro/3871/2
+# Two of the restrictions of @pure are
+#   1. The function it’s used on cannot be further extended by other methods after it gets called.
+#   2. It cannot recurse.
+#   3. An error cannot be thrown in the @pure function or any function it calls
+# Based on this, all usages of @pure here follow these general guidelines:
+#   1. If function definition it is used on has concrete arguments, it's safe to use @pure on
+#     that function (e.g. Base.:(!) below).
+#   2. Otherwise, it is applied to non-exported function defined here, possibly with an additional
+#     `__` prefixed function if the implementation is recursive.
+
+# An NTuple with at least one element
+const OneTuple{T,N} = Tuple{T, Vararg{T,N}}
+
 struct True end
 struct False end
 const TypedBool = Union{True, False}
 
-const GlobBool = Union{Colon, typeof(*)}
 
-const BoolLike = Union{TypedBool, GlobBool}
+@pure static_getindex(xs::NTuple{N,Any}, I::NTuple{N,TypedBool}) where {N} = _static_getindex(xs, I)
+@inline function _static_getindex(xs::OneTuple{Any}, I::OneTuple{TypedBool})
+    rest  = _static_getindex(tail(xs), tail(I))
+    return first(I) === True() ? (first(xs), rest...) : rest
+end
+_static_getindex(::Tuple{}, ::Tuple{}) = ()
 
-canonify(x::True) = x
-canonify(x::False) = x
-@pure canonify(::Colon) = True()
-@pure canonify(::typeof(*)) = False()
 
+@inline function static_setindex(t::NTuple{N,Any}, v::Tuple, I::NTuple{N,TypedBool}) where {N}
+    _static_setindex(t, v, I, static_getindex(I, I))
+end
+function _static_setindex(t::Tuple, v::Tuple, I::Tuple, ::Tuple)
+    throw(DimensionMismatch("Number of values provided does not match number of indices"))
+end
+@pure function _static_setindex(t::Tuple, v::NTuple{M,Any}, I::Tuple, ::NTuple{M,Any}) where {M}
+    __static_setindex(t, v, I)
+end
+@inline function __static_setindex(t::OneTuple{Any}, v::OneTuple{Any}, I::OneTuple{TypedBool})
+    if first(I) === True()
+        (first(v), __static_setindex(tail(t), tail(v), tail(I))...)
+    else
+        (first(t), __static_setindex(tail(t), v, tail(I))...)
+    end
+end
+# proper termination
+__static_setindex(t::Tuple{}, v::Tuple{}, I::Tuple{}) = ()
+__static_setindex(t::OneTuple{Any}, v::Tuple{}, I::OneTuple{False}) = t
 
 @pure Base.:(!)(::False) = True()
 @pure Base.:(!)(::True) = False()
 
+@inline static_sum(t::TupleN{TypedBool}) = Val(length(t[t]))
 
-@generated function static_merge(::Bys, x::X, y::Y) where {Bys<:TupleN{TypedBool},X<:Tuple,Y<:Tuple}
-    i = j = 0
-    xy = []
-    for By in Bys.parameters
-        if By === True
-            push!(xy, :(x[$(i += 1)]))
-            i > length(X.parameters) && return :(throw(BoundsError(x, $i)))
-        else
-            push!(xy, :(y[$(j += 1)]))
-            j > length(Y.parameters) && return :(throw(BoundsError(y, $j)))
-        end
-    end
-    return :(@_inline_meta; $(Expr(:tuple, xy...)))
+@inline function static_map(@specialize(f), t::NTuple{N,Any}) where {N}
+    ntuple(i -> (@_inline_meta; f(t[i])), Val(N))
 end
 
-# See: https://github.com/JuliaLang/julia/issues/33126
-static_in(x::StaticOrInt, itr::TupleN{StaticOrInt}) = _static_in(x, itr)
-@pure function _static_in(x::StaticOrInt, itr::TupleN{StaticOrInt})
-    for y in itr
-        unstatic(y) === unstatic(x) && return True()
-    end
-    return False()
+@inline function Base.findall(t::NTuple{N,TypedBool}) where {N}
+    static_getindex(ntuple(identity, Val(N)), t)
 end
-
-
-@inline function Base.getindex(xs::NTuple{N,Any}, I::NTuple{N,TypedBool}) where {N}
-    _getindex(xs, I)
-end
-
-@inline function _getindex(xs::NTuple{N,Any}, I::NTuple{N,TypedBool}) where {N}
-    rest  = _getindex(tail(xs), tail(I))
-    return first(I) === True() ? (first(xs), rest...) : rest
-end
-_getindex(::Tuple{}, ::Tuple{}) = ()
-
-
-@inline function Base.setindex(t::NTuple{N,Any}, v::Tuple, I::NTuple{N,TypedBool}) where {N}
-    _setindex(t, v, I)
-end
-
-@inline function _setindex(t::NTuple{N,Any}, v::Tuple, I::NTuple{N,TypedBool}) where {N}
-    if first(I) === True()
-        (first(v), _setindex(tail(t), tail(v), tail(I))...)
-    else
-        (first(t), _setindex(tail(t), v, tail(I))...)
-    end
-end
-_setindex(::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
-function _setindex(::Tuple{}, ::Tuple, ::Tuple{})
-    throw(DimensionMismatch("Cannot assign more values than indices"))
-end
-
-@inline static_sum(t::TupleN{TypedBool}) = length(t[t])
-
-
-@inline tuple_map(f::F, t::NTuple{N,Any}) where {F,N} = ntuple(i -> (@_inline_meta; f(t[i])), Val(N))
-
-@inline Base.findall(t::NTuple{N,TypedBool}) where {N} = ntuple(identity, Val(N))[t]

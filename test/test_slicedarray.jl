@@ -2,7 +2,7 @@ module TestSlicedArray
 
 using SpecialArrays: along2string
 using SpecialArrays: CartesianIndexer
-using SpecialArrays: tuple_map, True, False, TypedBool
+using SpecialArrays: True, False, TypedBool, static_map, static_getindex, static_setindex
 
 
 include("preamble.jl")
@@ -22,8 +22,8 @@ function makedata(V::Type, al::TupleN{TypedBool})
     L = length(al)
     pdims = testdims(L)
     sdims = findall(al)
-    innersize = pdims[al]
-    outersize = pdims[tuple_map(!, al)]
+    innersize = static_getindex(pdims, al)
+    outersize = static_getindex(pdims, static_map(!, al))
     M, N = length(innersize), length(outersize)
 
     flat = rand!(Array{V,L}(undef, pdims...))

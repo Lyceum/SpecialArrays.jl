@@ -14,6 +14,3 @@ using SpecialArrays: AbsArr, front, tuple_split, TupleN
 
 
 include("util.jl")
-
-
-testdims(L::Integer) = ntuple(i -> 3 + i, Val(unstatic(L)))

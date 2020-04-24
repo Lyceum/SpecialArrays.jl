@@ -3,7 +3,7 @@ module TestZygote
 using Zygote
 
 using SpecialArrays: along2string
-using SpecialArrays: True, False, TypedBool, tuple_map
+using SpecialArrays: True, False, TypedBool, static_map
 
 include("preamble.jl")
 
@@ -20,7 +20,7 @@ function makedata(al::TupleN{TypedBool})
     pdims = testdims(L)
     sdims = findall(al)
     innersize = pdims[al]
-    outersize = pdims[tuple_map(!, al)]
+    outersize = pdims[static_map(!, al)]
     M, N = length(innersize), length(outersize)
 
     flat = rand!(Array{Float64,L}(undef, pdims...))
@@ -73,7 +73,7 @@ end # module
 using Zygote
 @warn "YOO"
 using SpecialArrays: along2string
-using SpecialArrays: True, False, TypedBool, tuple_map
+using SpecialArrays: True, False, TypedBool, static_map
 
 include("preamble.jl")
 
@@ -93,7 +93,7 @@ gs2 = Zygote.gradient(f -> prod(sum(slice(f, al))), data.flat)
 
 function unslice(A::AbstractArray, alongs::NTuple{N,TypedBool}) where {N}
     dims = ntuple(identity, Val(N))
-    permuted_dims = (dims[alongs]..., dims[tuple_map(!, alongs)]...)
+    permuted_dims = (dims[alongs]..., dims[static_map(!, alongs)]...)
     return PermutedDimsArray(flatview(A), permuted_dims)
 end
 

@@ -7,6 +7,8 @@
 viewtype(A::AbstractArray, I::Tuple) = _viewtype(A, I)
 viewtype(A::AbstractArray, I...) = _viewtype(A, I)
 
+@inline _viewtype(A::AbstractArray, ::Tuple{}) = typeof(zeroview(A))
+
 @generated function _viewtype(A::AA, I::II) where {AA<:AbstractArray,II<:Tuple}
     T = Core.Compiler.return_type(view, Tuple{AA,II.parameters...})
     if isconcretetype(T)
@@ -34,4 +36,9 @@ end
         printstyled(stderr, msg, color = :light_red)
         rethrow(e)
     end
+end
+
+# Workaround for https://github.com/JuliaArrays/StaticArrays.jl/issues/705
+@inline function zeroview(A::AbstractArray)
+    SubArray(IndexStyle(Base.viewindexing(()), IndexStyle(A)), A, Base.ensure_indexable(()), Base.index_dimsum())
 end
