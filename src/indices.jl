@@ -2,8 +2,10 @@ const GlobBool = Union{Colon, typeof(*)}
 const BoolLike = Union{TypedBool, GlobBool}
 canonify(x::True) = x
 canonify(x::False) = x
-@pure canonify(::Colon) = True()
-@pure canonify(::typeof(*)) = False()
+canonify(::Colon) = True()
+canonify(::typeof(*)) = False()
+#@pure canonify(::Colon) = True()
+#@pure canonify(::typeof(*)) = False()
 
 # convert `alongs` to the canonical TypedBool form
 @inline function toalongs(paxes::NTuple{L,Any}, alongs::NTuple{L,BoolLike}) where {L}

@@ -8,15 +8,15 @@ viewtype(A::AbstractArray, I::Tuple) = _viewtype(A, I)
 viewtype(A::AbstractArray, I...) = _viewtype(A, I)
 
 @inline _viewtype(A::AbstractArray, ::Tuple{}) = typeof(zeroview(A))
-
-@generated function _viewtype(A::AA, I::II) where {AA<:AbstractArray,II<:Tuple}
-    T = Core.Compiler.return_type(view, Tuple{AA,II.parameters...})
-    if isconcretetype(T)
-        return :($T)
-    else
-        return :(__viewtype(A, I))
-    end
-end
+_viewtype(A::AbstractArray, I::Tuple) = __viewtype(A,I)
+#@generated function _viewtype(A::AA, I::II) where {AA<:AbstractArray,II<:Tuple}
+#    T = Core.Compiler.return_type(view, Tuple{AA,II.parameters...})
+#    if isconcretetype(T)
+#        return :($T)
+#    else
+#        return :(__viewtype(A, I))
+#    end
+#end
 
 function call2str(f, args...)
     argstrings = map(a -> a isa Type ? "::$a" : string(a), args)

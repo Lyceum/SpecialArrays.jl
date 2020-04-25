@@ -140,13 +140,19 @@ end
 #### Broadcasting
 ####
 
-#Broadcast.BroadcastStyle(::Type{<:SlicedArray}) = ArrayStyle{SlicedArray}()
+Broadcast.BroadcastStyle(::Type{<:SlicedArray}) = ArrayStyle{SlicedArray}()
 
-#function Base.similar(bc::Broadcasted{ArrayStyle{SlicedArray}}, ::Type{T}) where {T}
-#    S = find_sa(bc)
-#    ax = axes(bc)
-#    slice(similar(typeof(S.parent), mergeaxes(S, ax)), Val(length(ax)))
-#end
+function Base.similar(bc::Broadcasted{ArrayStyle{SlicedArray}}, ::Type{T}) where {T}
+    S2 = find_sa(bc)
+    S = slice(rand(2,3),:,*)
+    @info "YO" typeof(S2)
+    @info typeof(S) == typeof(S2)
+    ax = axes(bc)
+    max = (Base.OneTo(2), Base.OneTo(3))
+    #max = mergeaxes(S, ax)
+    #slice(similar(typeof(S.parent), mergeaxes(S, ax)), Val(length(ax)))
+    slice(similar(S.parent, map(length, max)), Val(length(ax)))
+end
 
 # find the first SlicedArray among bc.args
 find_sa(bc::Broadcast.Broadcasted) = find_sa(bc.args)
@@ -167,12 +173,12 @@ find_sa(::Any, rest) = find_sa(rest)
 
 const FastSlicedArray{T,N,M,P,A} = SlicedArray{T,N,M,P,A,true}
 
-function Base.copyto!(dest::FastSlicedArray, doffs::Integer, src::FastSlicedArray, soffs::Integer, n::Integer)
-    setindex_shape_check(dest, innersize(src))
-    pn = dest.elstride * n # if innersize(dest) == innersize(src) matches then so will elstride
-    copyto!(dest.parent, parentoffset(dest, doffs), src.parent, parentoffset(src, soffs), pn)
-    return dest
-end
+#function Base.copyto!(dest::FastSlicedArray, doffs::Integer, src::FastSlicedArray, soffs::Integer, n::Integer)
+#    setindex_shape_check(dest, innersize(src))
+#    pn = dest.elstride * n # if innersize(dest) == innersize(src) matches then so will elstride
+#    copyto!(dest.parent, parentoffset(dest, doffs), src.parent, parentoffset(src, soffs), pn)
+#    return dest
+#end
 
 @inline function parentoffset(S::FastSlicedArray, i::Integer)
     i1 = firstindex(S.parent)

@@ -150,4 +150,111 @@ end
 #@assert iscontiguous((False(), False(), False()))
 
 
+
+module M
+
+using Base: @pure, tail, front
+using SpecialArrays
+using SpecialArrays: True, False, TypedBool, static_map, front, tail, iscontiguous
+using BenchmarkTools
+using LyceumCore
+using Random
+using InteractiveUtils
+
+
+struct BoolIndex{N,I}
+    function BoolIndex{N,I}() where {N,I}
+        new{N::Int,I::NTuple{N,Bool}}()
+    end
+end
+@pure BoolIndex(I::NTuple{N,Bool}) where {N} = BoolIndex{N,I}()
+
+Base.length(::Type{<:BoolIndex{N}}) where {N} = N
+Base.Tuple(::Type{<:BoolIndex{N,I}}) where {N,I} = I
+
+Base.getindex(I::BoolIndex, i::Integer) = getindex(Tuple(I), i)
+Base.setindex(I::BoolIndex, v::Bool, i::Integer) = setindex(Tuple(I), v, i)
+
+for f in (:first, :last)
+    @eval $Base.$f(::Type{T}) where {T<:$BoolIndex} = $Base.$f($Tuple(T))
+end
+for f in (:tail, :front)
+    @eval @pure $Base.$f(::Type{T}) where {T<:$BoolIndex} = $BoolIndex($Base.$f($Tuple(T)))
+end
+for f in (:length, :Tuple, :tail, :front, :first, :last)
+    @eval @pure $Base.$f(I::$BoolIndex) = $Base.$f(typeof(I))
+end
+
+@inline function Base.iterate(I::BoolIndex, i::Int=1)
+    iterate(typeof(I), i)
+end
+#@inline function Base.iterate(::Type{I}, i::Int=1) where {I<:BoolIndex}
+@inline function Base.iterate(I::BoolIndex, i::Int=1)
+    return (1 <= i <= length(I)) ? (@inbounds I[i], i + 1) : nothing
+end
+
+
+@pure Base.getindex(xs::NTuple{N,Any}, I::BoolIndex{N}) where {N} = _getindex(xs, I)
+@inline function _getindex(xs::Tuple, I::BoolIndex)
+    rest  = _getindex(tail(xs), tail(I))
+    #return first(I) ? (first(xs), rest...) : rest
+    return first(I) === true ? (first(xs), rest...) : rest
+end
+_getindex(::Tuple{}, ::BoolIndex{0}) = ()
+
+@inline function Base.setindex(t::NTuple{N,Any}, v::Tuple, I::BoolIndex{N}) where {N}
+    _setindex(t, v, I, I[I])
+end
+function _setindex(t::Tuple, v::Tuple, I::BoolIndex, ::Tuple)
+    throw(DimensionMismatch("Number of values provided does not match number of indices"))
+end
+@pure function _setindex(t::Tuple, v::NTuple{M,Any}, I::BoolIndex, ::NTuple{M,Any}) where {M}
+    __setindex(t, v, I)
+end
+@inline function __setindex(t::Tuple, v::Tuple, I::BoolIndex)
+    if first(I) === True()
+        (first(v), __setindex(tail(t), tail(v), tail(I))...)
+    else
+        (first(t), __setindex(tail(t), v, tail(I))...)
+    end
+end
+# proper termination
+__setindex(t::Tuple{}, v::Tuple{}, I::BoolIndex{0}) = ()
+__setindex(t::Tuple, v::Tuple{}, I::BoolIndex) = t
+
+@inline function bam(A::AbstractArray{<:Any,N}, alongs::NTuple{N,Bool}) where {N}
+    bam(A, BoolIndex(alongs))
+end
+
+@inline function bam(A::AbstractArray{<:Any,N}, alongs::BoolIndex{N}) where {N}
+    a = ntuple(i -> alongs[i] ? True() : False(), Val(N))
+    slice(A, a)
+end
+
+end # module
+
+
+
+#I = M.BoolIndex((true,false,true))
+n = 15
+I = M.BoolIndex(ntuple(i -> isodd(i), n))
+t = ntuple(identity, n)
+v = Tuple(i for i in t if isodd(i))
+#@btime $t[$I]
+function fuck()
+    x = rand(ntuple(identity, Val(8))...)
+    #I = (true,false)
+    I = ntuple(isodd, Val(8))
+    #I = M.BoolIndex((true,false))
+    M.bam(x, I)
+end
+
+function fuck2()
+    x = rand(ntuple(identity, Val(8))...)
+    I = (True(),False(),True(),False(), True(),False(),True(),False())
+    slice(x,I)
+end
+
+
+
 nothing

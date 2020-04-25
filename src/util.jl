@@ -18,4 +18,5 @@ end
 # `in` doesn't appear to always constant propagate.
 # See: https://github.com/JuliaLang/julia/issues/33126
 static_in(item::Integer, t::TupleN{Integer}) = _static_in(item, t)
-@pure _static_in(item::Integer, t::TupleN{Integer}) = ifelse(item in t, True(), False())
+_static_in(item::Integer, t::TupleN{Integer}) = ifelse(item in t, True(), False())
+#@pure _static_in(item::Integer, t::TupleN{Integer}) = ifelse(item in t, True(), False())

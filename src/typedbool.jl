@@ -18,7 +18,8 @@ struct False end
 const TypedBool = Union{True, False}
 
 
-@pure static_getindex(xs::NTuple{N,Any}, I::NTuple{N,TypedBool}) where {N} = _static_getindex(xs, I)
+#@pure static_getindex(xs::NTuple{N,Any}, I::NTuple{N,TypedBool}) where {N} = _static_getindex(xs, I)
+static_getindex(xs::NTuple{N,Any}, I::NTuple{N,TypedBool}) where {N} = _static_getindex(xs, I)
 @inline function _static_getindex(xs::OneTuple{Any}, I::OneTuple{TypedBool})
     rest  = _static_getindex(tail(xs), tail(I))
     return first(I) === True() ? (first(xs), rest...) : rest
@@ -32,7 +33,8 @@ end
 function _static_setindex(t::Tuple, v::Tuple, I::Tuple, ::Tuple)
     throw(DimensionMismatch("Number of values provided does not match number of indices"))
 end
-@pure function _static_setindex(t::Tuple, v::NTuple{M,Any}, I::Tuple, ::NTuple{M,Any}) where {M}
+#@pure function _static_setindex(t::Tuple, v::NTuple{M,Any}, I::Tuple, ::NTuple{M,Any}) where {M}
+function _static_setindex(t::Tuple, v::NTuple{M,Any}, I::Tuple, ::NTuple{M,Any}) where {M}
     __static_setindex(t, v, I)
 end
 @inline function __static_setindex(t::OneTuple{Any}, v::OneTuple{Any}, I::OneTuple{TypedBool})
@@ -46,8 +48,10 @@ end
 __static_setindex(t::Tuple{}, v::Tuple{}, I::Tuple{}) = ()
 __static_setindex(t::OneTuple{Any}, v::Tuple{}, I::OneTuple{False}) = t
 
-@pure Base.:(!)(::False) = True()
-@pure Base.:(!)(::True) = False()
+Base.:(!)(::False) = True()
+Base.:(!)(::True) = False()
+#@pure Base.:(!)(::False) = True()
+#@pure Base.:(!)(::True) = False()
 
 @inline static_sum(t::TupleN{TypedBool}) = Val(length(t[t]))
 
