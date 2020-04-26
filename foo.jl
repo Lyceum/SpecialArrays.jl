@@ -153,7 +153,7 @@ end
 
 module M
 
-using Base: @pure, tail, front
+using Base: @pure, tail, front, setindex
 using SpecialArrays
 using SpecialArrays: True, False, TypedBool, static_map, front, tail, iscontiguous
 using BenchmarkTools
@@ -231,30 +231,56 @@ end
     slice(A, a)
 end
 
+
+const Glob = Union{Colon,typeof(*)}
+#@pure function to_alongs(I::NTuple{N,Glob}) where {N}
+#    _to_alongs(I, ntuple(identity, Val(N)))
+#end
+#@inline function _to_alongs(I::Tuple{Colon,Vararg{Glob}}, J::Dims)
+#    (first(J), _to_alongs(tail(I), tail(J))...)
+#end
+#@inline function _to_alongs(I::Tuple{typeof(*),Vararg{Glob}}, J::Dims)
+#    _to_alongs(tail(I), tail(J))
+#end
+#function _to_alongs(I::Tuple{}, J::Tuple{})
+#    ()
+#end
+@inline function getindices(t::Tuple, ind::Tuple{Vararg{Int}})
+    (t[ind[1]], getindices(t, tail(ind))...)
+end
+getindices(t::Tuple, ind::Tuple{}) = ()
+
+@inline function setindices(t::Tuple, v::NTuple{N,Any}, I::NTuple{N,Any}) where {N}
+    setindices(setindex(t, first(v), first(I)), tail(v), tail(I))
+end
+setindices(t::Tuple, v::Tuple{}, I::Tuple{}) = t
+
+myiscontiguous(dims::Dims{0}) = true
+myiscontiguous(dims::Dims{1}) = true
+@pure function myiscontiguous(dims::Dims{N}) where {N}
+    x = ntuple(identity, Val(N))
+    for i = 1:N
+        dims[i] == x[i] || return false
+    end
+    return true
+end
 end # module
 
+function invalongs(alongs::Dims, ::Val{N}) where {N}
 
 
-#I = M.BoolIndex((true,false,true))
-n = 15
-I = M.BoolIndex(ntuple(i -> isodd(i), n))
-t = ntuple(identity, n)
-v = Tuple(i for i in t if isodd(i))
-#@btime $t[$I]
-function fuck()
-    x = rand(ntuple(identity, Val(8))...)
-    #I = (true,false)
-    I = ntuple(isodd, Val(8))
-    #I = M.BoolIndex((true,false))
-    M.bam(x, I)
+M.setindices((1,2,3,4),(10,30),(1,3))
+g = ntuple(i -> isodd(i) ? Colon() : *, 7)
+
+function bam()
+    I = (:,*,:,*,:,*,:)
+    M.to_alongs(I)
 end
-
-function fuck2()
-    x = rand(ntuple(identity, Val(8))...)
-    I = (True(),False(),True(),False(), True(),False(),True(),False())
-    slice(x,I)
+function bam2()
+    I = (1,2,3,4,6,7,8,9,10)
+    _bam2(I)
 end
-
+_bam2(I) = M.myiscontiguous(I) ? 1 : 1.0
 
 
 nothing

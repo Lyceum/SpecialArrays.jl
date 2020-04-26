@@ -1,30 +1,26 @@
 module TestSlicedArray
 
-using SpecialArrays: along2string
-using SpecialArrays: CartesianIndexer
-using SpecialArrays: True, False, TypedBool, static_map, static_getindex, static_setindex
-
-
+using SpecialArrays: Glob, getindices, setindices, invdims, to_idims
 include("preamble.jl")
 
 
-const TEST_ALONGS = [
-    (True(), ),
-    (False(), ),
+const TEST_IDIMS = [
+    (:, ),
+    (*, ),
 
-    (True(), True()),
-    (True(), False()),
-    (False(), True()),
-    (False(), False()),
+    (:, :),
+    (:, *),
+    (*, :),
+    (*, *),
 ]
 
-function makedata(V::Type, al::TupleN{TypedBool})
-    L = length(al)
+function makedata(V::Type, idims_glob::NTuple{L,Glob}) where {L}
+    idims = to_idims(idims_glob)
     pdims = testdims(L)
-    sdims = findall(al)
-    innersize = static_getindex(pdims, al)
-    outersize = static_getindex(pdims, static_map(!, al))
-    M, N = length(innersize), length(outersize)
+    innersize = getindices(pdims, idims)
+    outersize = getindices(pdims, invdims(idims, Val(L)))
+    M = length(innersize)
+    N = length(outersize)
 
     flat = rand!(Array{V,L}(undef, pdims...))
 
@@ -38,23 +34,21 @@ function makedata(V::Type, al::TupleN{TypedBool})
     end
 
     return (
-        nested = nested,
-        flat = flat,
+        idims_glob = idims_glob,
+        idims = idims,
         pdims = pdims,
-        sdims = sdims,
-        static_sdims = map(static, sdims),
         innersize = innersize,
         outersize = outersize,
-        inneraxes = axes(first(nested)),
-        outeraxes = axes(nested),
         M = M,
         N = N,
+        nested = nested,
+        flat = flat,
     )
 end
 
 
 showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
-@testset "al = $(showalongs(al)), V = $V" for al in TEST_ALONGS, V in (Float64,)
+@testset "al = $(showalongs(al)), V = $V" for al in TEST_IDIMS, V in (Float64,)
     @testset "constructors" begin
         @unpack flat, sdims, static_sdims, M, N = makedata(V, al)
         Expected = SlicedArray{<:AbsArr{V,M},N,M,Array{V,M + N},typeof(al)}
@@ -132,13 +126,14 @@ end
     @test A == Av
 end
 
-Adapt.adapt_storage(::Type{<:CartesianIndexer}, A) = CartesianIndexer(A)
-@testset "Adapt" begin
-    A = slice(rand(2, 3, 4), 1, 3)
-    B = adapt(CartesianIndexer, A)
-    @test A == B
-    @test parent(B) isa CartesianIndexer
-end
+# TODO
+#Adapt.adapt_storage(::Type{<:CartesianIndexer}, A) = CartesianIndexer(A)
+#@testset "Adapt" begin
+#    A = slice(rand(2, 3, 4), 1, 3)
+#    B = adapt(CartesianIndexer, A)
+#    @test A == B
+#    @test parent(B) isa CartesianIndexer
+#end
 
 
 end # module

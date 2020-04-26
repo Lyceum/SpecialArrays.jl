@@ -19,12 +19,14 @@ const AbstractArrayOfSimilarArrays{V,M,N} = AbstractArray{<:AbstractArray{V,M},N
 const AbstractArrayOfArrays{N} = AbstractArray{<:AbstractArray}
 
 const TupleN{T,N} = NTuple{N,T}
+const ATuple{N} = NTuple{N,Any}
 
 const Idx = Union{Colon,Real,AbstractArray} # TODO
 
+include("TupleToolsX.jl")
+using .TupleToolsX: getindices, setindices
+
 include("util.jl")
-include("typedbool.jl")
-include("indices.jl")
 include("compat.jl")
 include("viewtype.jl")
 include("cartesianindexer.jl")
