@@ -14,10 +14,10 @@ const TypedBool = Union{True, False}
     for By in Bys.parameters
         if By === True
             push!(xy, :(x[$(i += 1)]))
-            i > tuple_length(X) && return :(throw(BoundsError(x, $i)))
+            i > length(X.parameters) && return :(throw(BoundsError(x, $i)))
         else
             push!(xy, :(y[$(j += 1)]))
-            j > tuple_length(Y) && return :(throw(BoundsError(y, $j)))
+            j > length(Y.parameters) && return :(throw(BoundsError(y, $j)))
         end
     end
     return :(@_inline_meta; $(Expr(:tuple, xy...)))

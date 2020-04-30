@@ -6,7 +6,6 @@ using Base: @propagate_inbounds, @pure, @_inline_meta, require_one_based_indexin
 using Base.MultiplicativeInverses: SignedMultiplicativeInverse
 
 using DocStringExtensions
-using LyceumCore
 using MacroTools: @forward
 using Requires: @require
 using Shapes
@@ -16,7 +15,7 @@ using UnsafeArrays
 
 const Idx = Union{Colon,Real,AbstractArray}
 
-
+include("util.jl")
 include("viewtype.jl")
 include("cartesianindexer.jl")
 include("typedbool.jl")
