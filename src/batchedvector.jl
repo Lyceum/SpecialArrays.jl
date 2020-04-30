@@ -1,13 +1,13 @@
-struct BatchedVector{T,P<:AbsVec} <: AbsVec{T} # TODO T<:AbsVec
+struct BatchedVector{T,P<:AbstractVector} <: AbstractVector{T} # TODO T<:AbstractVector
     parent::P
     offsets::Vector{Int}
-    @inline function BatchedVector{T,P}(parent, offsets) where {T,P<:AbsVec}
+    @inline function BatchedVector{T,P}(parent, offsets) where {T,P<:AbstractVector}
         check_offsets(parent, offsets)
         new(parent, offsets)
     end
 end
 
-@inline function BatchedVector(parent::AbsVec, offsets::AbsVec{<:Integer})
+@inline function BatchedVector(parent::AbstractVector, offsets::AbstractVector{<:Integer})
     T = viewtype(parent, firstindex(parent):firstindex(parent))
     BatchedVector{T,typeof(parent)}(parent, offsets)
 end
@@ -59,7 +59,7 @@ Base.parent(A::BatchedVector) = A.parent
 View `A` as a vector of batches where `batch(parent, batch_lengths)[i]` has
 length `batch_lengths[i]`.
 """
-@inline function batch(parent::AbsVec, batch_lengths)
+@inline function batch(parent::AbstractVector, batch_lengths)
     offsets = Vector{Int}(undef, length(batch_lengths) + 1)
     offsets[1] = cumsum = 0
     for (i, l) in enumerate(batch_lengths)
@@ -73,7 +73,7 @@ end
     $(SIGNATURES)
 View `A` as a vector of batches using the same batch lengths as `B`.
 """
-@inline function batchlike(A::AbsVec, B::BatchedVector)
+@inline function batchlike(A::AbstractVector, B::BatchedVector)
     length(A) == length(B.parent) || throw(ArgumentError("length(A) != length(parent(B))"))
     BatchedVector(A, copy(B.offsets))
 end
@@ -101,7 +101,7 @@ end
 
 check_offsets(A::BatchedVector) = check_offsets(A.parent, A.offsets)
 
-function check_offsets(parent::AbsVec, offsets::AbsVec{<:Integer})
+function check_offsets(parent::AbstractVector, offsets::AbstractVector{<:Integer})
     length(offsets) >= 1 || throw(ArgumentError("offsets cannot be empty"))
     first(offsets) == 0 || throw(ArgumentError("First offset is non-zero"))
     len = 0

@@ -7,7 +7,7 @@ Throws an error if the elements of `A` do not have equal element types.
 """
 innereltype(::Type{<:AbstractArrayOfSimilarArrays{V}}) where {V} = V
 innereltype(A::AbstractArrayOfSimilarArrays) = innereltype(typeof(A))
-innereltype(A::AbsArr) = _scan_inner(eltype, A)
+innereltype(A::AbstractArray) = _scan_inner(eltype, A)
 
 
 """
@@ -19,7 +19,7 @@ Throws an error if the elements of `A` do not have equal dimensionality.
 """
 innerndims(::Type{<:AbstractArrayOfSimilarArrays{<:Any,M}}) where {M} = M
 innerndims(A::AbstractArrayOfSimilarArrays) = innerndims(typeof(A))
-innerndims(A::AbsArr) = _scan_inner(ndims, A)
+innerndims(A::AbstractArray) = _scan_inner(ndims, A)
 
 
 """
@@ -28,7 +28,7 @@ innerndims(A::AbsArr) = _scan_inner(ndims, A)
 Returns the common axes of the elements of `A`.
 Throws an error if the elements of `A` do not have equal axes.
 """
-function inneraxes(A::AbsArr)
+function inneraxes(A::AbstractArray)
     if isempty(A)
         # TODO this would be wrong for offset arrays?
         return ntuple(_ -> Base.OneTo(0), innerndims(A))
@@ -37,7 +37,7 @@ function inneraxes(A::AbsArr)
     end
 end
 
-@inline function inneraxes(A::AbsArr, d::Integer)
+@inline function inneraxes(A::AbstractArray, d::Integer)
     d <= innerndims(A) ? inneraxes(A)[d] : Base.OneTo(1)
 end
 
@@ -48,8 +48,8 @@ end
 Returns the common size of the elements of `A`.
 Throws an error if the elements of `A` do not have equal axes.
 """
-@inline innersize(A::AbsArr) = map(Base.unsafe_length, inneraxes(A))
-@inline innersize(A::AbsArr, d::Integer) = Base.unsafe_length(inneraxes(A, d))
+@inline innersize(A::AbstractArray) = map(Base.unsafe_length, inneraxes(A))
+@inline innersize(A::AbstractArray, d::Integer) = Base.unsafe_length(inneraxes(A, d))
 
 
 """
@@ -58,10 +58,10 @@ Throws an error if the elements of `A` do not have equal axes.
 Returns the common length of the elements of `A`.
 Throws an error if the elements of `A` do not have equal length.
 """
-@inline innerlength(A::AbsArr) = _scan_inner(length, A)
+@inline innerlength(A::AbstractArray) = _scan_inner(length, A)
 
 
-function _scan_inner(f::F, A::AbsArr) where {F}
+function _scan_inner(f::F, A::AbstractArray) where {F}
     if isempty(A)
         throw(ArgumentError("Cannot apply $f to an empty array"))
     else

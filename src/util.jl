@@ -1,31 +1,32 @@
 const Glob = Union{Colon, typeof(*)}
 
-to_idims(idims::Dims) = idims
-to_idims(idims::TupleN{Integer}) = convert(Dims, idims)
-to_idims(idims::Integer...) = to_idims(idims)
-to_idims() = () # method ambiguity
-
-to_idims(::Val{M}) where {M} = ntuple(identity, Val(M))
-
-# without @pure this only infers up to length 5
-@pure to_idims(idims::NTuple{N,Glob}) where {N} = _to_idims(ntuple(identity, Val(N)), idims)
-to_idims(idims::Glob...) = to_idims(idims)
-@inline function _to_idims(pdims::Dims, idims::Tuple{Colon, Vararg{Glob}})
-    (first(pdims), _to_idims(tail(pdims), tail(idims))...)
+@inline to_alongs(alongs::Bools{L}, ::Val{L}) where {L} = alongs
+@inline function to_alongs(::Val{M}, ::Val{L}) where {M,L}
+    (ntuple(_ -> true, Val(M))..., ntuple(_ -> false, Val(L))...)
 end
-@inline function _to_idims(pdims::Dims, idims::Tuple{typeof(*), Vararg{Glob}})
-    _to_idims(tail(pdims), tail(idims))
+@inline function to_alongs(dims::Dims, ::Val{L}) where {L}
+    ntuple(dim -> (@_inline_meta; dim in dims), Val(L)) # TODO TupleTools.in
 end
-_to_idims(pdims::Tuple{}, idims::Tuple{}) = ()
+@inline function to_alongs(alongs::NTuple{L,Glob}, ::Val{L}) where {L}
+    ntuple(i -> (@_inline_meta; alongs[i] === Colon()), Val(L))
+end
 
 
-@pure invdims(dims::Dims, ::Val{L}) where {L} = TupleToolsX.deleteat(ntuple(identity, Val(L)), dims)
-@pure invdims(dims::Dims{0}, ::Val{L}) where {L} = ntuple(identity, Val(L))
+# returns true iff any number of True's followed by any number of False's
+iscontiguous(::Bools) = false
+#iscontiguous(alongs::BoolIndex) = false # TODO
+#iscontiguous(alongs::Tuple{}) = true
+#iscontiguous(alongs::Tuple{True}) = true
+#iscontiguous(alongs::Tuple{False}) = true
+#iscontiguous(alongs::Tuple{True, Vararg{False}}) = true
+#iscontiguous(alongs::Tuple{True, Vararg{True}}) = true
+#iscontiguous(alongs::Tuple{False, Vararg{False}}) = true
+#iscontiguous(alongs::Tuple{False, Vararg{TypedBool}}) = false
+#iscontiguous(alongs::Tuple{True, Vararg{TypedBool}}) = iscontiguous(tail(alongs))
 
-@pure iscontiguous(idims::Dims{N}) where {N} = idims == ntuple(identity, Val(N))
+@pure sliceaxes(A::AbstractArray) = sliceaxes(axes(A))
+@pure sliceaxes(axes::Tuple) = TupleTools.map(Base.Slice, axes)
 
-sliceaxes(A::AbstractArray) = sliceaxes(axes(A))
-@pure sliceaxes(axes::Tuple) = TupleToolsX.map(ax->(@_inline_meta; Base.Slice(ax)), axes)
 
 ####
 #### Misc

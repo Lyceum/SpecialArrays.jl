@@ -12,4 +12,4 @@ Zygote.@adjoint function flatview(A::AbstractArrayOfArrays)
     flatview(A), Δ -> (slice(Δ, Val(innerndims(A))), )
 end
 
-Zygote.@adjoint flatview(A::AbsArr) = A, identity
+Zygote.@adjoint flatview(A::AbstractArray) = A, identity

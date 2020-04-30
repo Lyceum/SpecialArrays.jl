@@ -51,7 +51,7 @@ showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
 @testset "al = $(showalongs(al)), V = $V" for al in TEST_IDIMS, V in (Float64,)
     @testset "constructors" begin
         @unpack flat, sdims, static_sdims, M, N = makedata(V, al)
-        Expected = SlicedArray{<:AbsArr{V,M},N,M,Array{V,M + N},typeof(al)}
+        Expected = SlicedArray{<:AbstractArray{V,M},N,M,Array{V,M + N},typeof(al)}
 
         @test typeof(SlicedArray(flat, al)) <: Expected
         @test_inferred SlicedArray(flat, al)
@@ -81,8 +81,8 @@ showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
     @testset "mapslices ($name)" for (name, f) in (
         ("identity", identity),
         ("sum", el -> sum(el)),
-        ("reshape(..., reverse(dims))", el -> el isa AbsArr ? reshape(el, reverse(size(el))) : el),
-        ("reshape(..., Val(1))", el -> el isa AbsArr ? reshape(el, Val(1)) : el),
+        ("reshape(..., reverse(dims))", el -> el isa AbstractArray ? reshape(el, reverse(size(el))) : el),
+        ("reshape(..., Val(1))", el -> el isa AbstractArray ? reshape(el, Val(1)) : el),
     )
         data = makedata(V, al)
         B1 = mapslices(f, data.flat, dims = data.sdims)

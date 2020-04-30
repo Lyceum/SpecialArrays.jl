@@ -14,14 +14,14 @@ end
 @testset "nbatches = $nbatches, V = $V" for nbatches in (1, 10), V in (Float64, )
     @testset "constructors" begin
         @unpack batch_lengths, offsets, nested, flat = makedata(V, nbatches)
-        Expected = BatchedVector{<:AbsArr{V,innerndims(nested)},typeof(flat)}
+        Expected = BatchedVector{<:AbstractArray{V,innerndims(nested)},typeof(flat)}
         @test BatchedVector(flat, offsets) isa Expected
         @test_inferred BatchedVector(flat, offsets)
     end
 
     @testset "Extra" begin
         @unpack batch_lengths, offsets, nested, flat = makedata(V, nbatches)
-        Expected = BatchedVector{<:AbsArr{V,innerndims(nested)},typeof(flat)}
+        Expected = BatchedVector{<:AbstractArray{V,innerndims(nested)},typeof(flat)}
         @test batch(flat, batch_lengths) isa Expected
         @test_inferred batch(flat, batch_lengths)
         let B1 = batch(flat, batch_lengths)
@@ -60,4 +60,3 @@ end
 
 
 end # module
-

@@ -4,7 +4,7 @@ randlike(x::Number) = rand(typeof(x))
 randlike(A::AbstractArray{<:Number}) = rand(eltype(A), size(A)...)
 randlike(A::AbstractArray{<:Number,0}) = rand!(zeros(eltype(A)))
 
-function randlike(A::AbsArr{<:AbsArr{V,M},N}) where {V,M,N}
+function randlike(A::AbstractArray{<:AbstractArray{V,M},N}) where {V,M,N}
     B = Array{Array{V,M},N}(undef, size(A)...)
     for I in eachindex(B)
         B[I] = randlike(A[I])
@@ -12,14 +12,14 @@ function randlike(A::AbsArr{<:AbsArr{V,M},N}) where {V,M,N}
     return B
 end
 
-function randlike!(A::AbsArr{<:AbsArr})
+function randlike!(A::AbstractArray{<:AbstractArray})
     for I in eachindex(A)
         copyto!(A[I], randlike(A[I]))
     end
     return A
 end
 
-function randlike!(A::AbsArr{<:Number})
+function randlike!(A::AbstractArray{<:Number})
     for I in eachindex(A)
         A[I] = randlike(A[I])
     end

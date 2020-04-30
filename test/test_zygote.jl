@@ -85,11 +85,11 @@ gs2 = Zygote.gradient(f -> prod(sum(slice(f, al))), data.flat)
 @info "" size(first(gs1)) size(first(first(gs1))) size(first(gs2))
 
 
-#@inline function unslice(A::AbsArr, I::NTuple{L,Union{Colon,typeof(*)}}) where {L}
+#@inline function unslice(A::AbstractArray, I::NTuple{L,Union{Colon,typeof(*)}}) where {L}
 #    alongs = ntuple(i -> (Base.@_inline_meta; I[i] === Colon() ? True() : False()), Val(L))
 #    SlicedArray(reshape(A, Val(L)), alongs)
 #end
-#@inline slice(A::AbsArr, I::Vararg{Union{Colon,typeof(*)},L}) where {L} = slice(A, I)
+#@inline slice(A::AbstractArray, I::Vararg{Union{Colon,typeof(*)},L}) where {L} = slice(A, I)
 
 function unslice(A::AbstractArray, alongs::NTuple{N,TypedBool}) where {N}
     dims = ntuple(identity, Val(N))

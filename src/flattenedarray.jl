@@ -1,18 +1,18 @@
-struct FlattenedArray{V,L,M,N,P<:AbsArr,InAx<:NTuple{M,Any}} <: AbstractArray{V,L}
+struct FlattenedArray{V,L,M,N,P<:AbstractArray,InAx<:NTuple{M,Any}} <: AbstractArray{V,L}
     parent::P
     inneraxes::InAx
-    @inline function FlattenedArray{V,L,M,N,P,InAx}(parent, inneraxes) where {V,L,M,N,P<:AbsArr,InAx<:NTuple{M,Any}}
+    @inline function FlattenedArray{V,L,M,N,P,InAx}(parent, inneraxes) where {V,L,M,N,P<:AbstractArray,InAx<:NTuple{M,Any}}
         new{V,L,M,N,P,InAx}(parent, inneraxes)
     end
 end
 
-function FlattenedArray(parent::AbsArr, inneraxes::NTuple{M,Any}) where {M}
+function FlattenedArray(parent::AbstractArray, inneraxes::NTuple{M,Any}) where {M}
     V = innereltype(parent)
     N = ndims(parent)
     FlattenedArray{V,M+N,M,N,typeof(parent),typeof(inneraxes)}(parent, inneraxes)
 end
 
-FlattenedArray(parent::AbsArr) = FlattenedArray(parent, inneraxes(parent))
+FlattenedArray(parent::AbstractArray) = FlattenedArray(parent, inneraxes(parent))
 
 
 ####
@@ -65,10 +65,10 @@ end
 # Because F::FlattenedArray is a flattened view of an AbstractArray{<:AbstractArray},
 # Base.dataids should return the equivalent of union(Base.dataids(x), Base.dataids.(x)...).
 # This works, but the default recursive implementation is slow when length(parent(F)) is large.
-function Base.mightalias(A::AbsArr, F::FlattenedArray)
+function Base.mightalias(A::AbstractArray, F::FlattenedArray)
     !isbits(A) && !isbits(F) && !isdisjoint(Base.dataids(A), _dataids(F))
 end
-function Base.mightalias(F::FlattenedArray, A::AbsArr)
+function Base.mightalias(F::FlattenedArray, A::AbstractArray)
     !isbits(F) && !isbits(A) && !isdisjoint(_dataids(F), Base.dataids(A))
 end
 function Base.mightalias(F1::FlattenedArray, F2::FlattenedArray)
@@ -119,7 +119,7 @@ true
 ```
 """
 flatview(A::AbstractArrayOfArrays) = FlattenedArray(A)
-flatview(A::AbsArr) = A
+flatview(A::AbstractArray) = A
 
 
 
@@ -130,4 +130,4 @@ flatview(A::AbsArr) = A
 
 Like [`flatview`](@ref) but returns a new array.
 """
-flatten(A::AbsArr) = copy(flatview(A))
+flatten(A::AbstractArray) = copy(flatview(A))

@@ -2,9 +2,8 @@ module SpecialArrays
 
 using Adapt
 
-using Base: @propagate_inbounds, @pure, @_inline_meta, require_one_based_indexing
-using Base.MultiplicativeInverses: SignedMultiplicativeInverse
-using Base: setindex, unsafe_length
+using Base: @propagate_inbounds, @pure, @_inline_meta
+using Base: require_one_based_indexing, setindex, unsafe_length
 using Base.Broadcast: Broadcast, ArrayStyle, Broadcasted
 
 using DocStringExtensions
@@ -14,22 +13,19 @@ using Shapes
 using StaticNumbers
 using UnsafeArrays
 
-# TODO This is an abstract type in ArraysOfArrays
 const AbstractArrayOfSimilarArrays{V,M,N} = AbstractArray{<:AbstractArray{V,M},N}
 const AbstractArrayOfArrays{N} = AbstractArray{<:AbstractArray}
 
-const TupleN{T,N} = NTuple{N,T}
-const ATuple{N} = NTuple{N,Any}
 
 const Idx = Union{Colon,Real,AbstractArray} # TODO
 
-include("TupleToolsX.jl")
-using .TupleToolsX: getindices, setindices
+include("TupleTools.jl")
+using .TupleTools
+using .TupleTools: TupleN, Some, Anys # TODO
 
 include("util.jl")
 include("compat.jl")
 include("viewtype.jl")
-include("cartesianindexer.jl")
 
 export innereltype, innerndims, inneraxes, innersize, innerlength
 include("functions.jl")
@@ -39,9 +35,6 @@ include("slicedarray.jl")
 
 export FlattenedArray, flatview, flatten
 include("flattenedarray.jl")
-
-export ElasticArray
-include("elasticarray.jl")
 
 export BatchedVector, batch, batchlike
 include("batchedvector.jl")

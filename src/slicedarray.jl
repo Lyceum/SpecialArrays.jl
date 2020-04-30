@@ -1,40 +1,66 @@
-struct SlicedArray{T,N,M,idims,C,P} <: AbstractArray{T,N}
+struct SlicedArray{T,N,M,alongs,P<:AbstractArray,C} <: AbstractArray{T,N}
     parent::P
     elstride::Int
-    @inline function SlicedArray{T,N,M,idims,C,P}(parent::AbstractArray, elstride::Integer) where {T,N,M,idims,C,P}
+    @inline function SlicedArray{T,N,M,alongs,P,C}(parent::P, elstride::Int) where {T,N,M,alongs,P<:AbstractArray,C}
         # TODO check parameters
         new(parent, elstride)
     end
 end
 
-@inline function SlicedArray(parent::P, idims::Dims{M}, odims::Dims{N}) where {P<:AbstractArray,M,N}
+#@inline function SlicedArray{T}(parent::P, elstride::Int, alongs::Bools, ::Anys{N}) where {T,P,N}
+#    SlicedArray{T,N,ndims(T),alongs,P,iscontiguous(alongs)}(parent, elstride)
+#end
+
+#@inline function SlicedArray(parent::P, alongs::Bools) where {P<:AbstractArray}
+#    mask = BoolIndex(alongs)
+#    invmask = invert(mask)
+#    paxes = sliceaxes(parent)
+#    iaxes = paxes[mask]
+#    oaxes = paxes[invmask]
+#    T = typeof(view(parent, setindex(paxes, TupleTools.map(first, oaxes), invmask)...))
+#    elstride = prod(TupleTools.map(unsafe_length, iaxes))
+#    SlicedArray{T}(parent, elstride, alongs, iaxes)
+#end
+
+@inline function SlicedArray{T}(parent::P, elstride::Int, alongs::Bools, ::Anys{N}) where {T,P,N}
+    SlicedArray{T,N,ndims(T),alongs,P,iscontiguous(alongs)}(parent, elstride)
+end
+alongs(::BoolIndex{N,M,mask}) where {N,M,mask} = mask
+@inline function SlicedArray(parent::P, mask::BoolIndex) where {P<:AbstractArray}
+    SlicedArray(parent, alongs(mask), mask, invert(mask))
+end
+
+@inline function SlicedArray(parent::P, alongs::Bools) where {P<:AbstractArray}
+    mask = BoolIndex(alongs)
+    invmask = invert(mask)
+    SlicedArray(parent, alongs, mask, invmask)
+end
+
+@inline function SlicedArray(parent::P, alongs::Bools, mask::BoolIndex, invmask::BoolIndex) where {P<:AbstractArray}
     paxes = sliceaxes(parent)
-    I1 = setindices(paxes, TupleToolsX.map(first, getindices(paxes, odims)), odims)
-    T = viewtype(parent, I1)
-    elstride = TupleToolsX.prod(TupleToolsX.map(unsafe_length, getindices(paxes, idims)))
-    SlicedArray{T,N,M,idims,iscontiguous(idims),P}(parent, elstride)
+    iaxes = paxes[mask]
+    oaxes = paxes[invmask]
+    T = typeof(view(parent, setindex(paxes, TupleTools.map(first, oaxes), invmask)...))
+    #elstride = prod(TupleTools.map(unsafe_length, iaxes))
+    #SlicedArray{T}(parent, elstride, alongs, iaxes)
 end
-
-@inline function SlicedArray(parent::AbstractArray{<:Any,L}, idims::Dims) where {L}
-    SlicedArray(parent, idims, invdims(idims, Val(L)))
-end
-
-idims(::SlicedArray{<:Any,<:Any,<:Any,_idims}) where {_idims} = _idims
-odims(S::SlicedArray) = invdims(idims(S), Val(ndims(S.parent)))
-
 
 #function Base.similar(S::SlicedArray, ::Type{<:AbstractArray{V}}, dims::Dims{N}) where {V,N}
 #    slice(similar(S.parent, V, (innersize(S)..., dims...)), Val(N))
 #end
+
+alongs(S::SlicedArray{<:Any,<:Any,<:Any,_alongs}) where {_alongs} = _alongs
+@inline mask(S::SlicedArray) = BoolIndex(alongs(S))
+@inline invmask(S::SlicedArray) = invert(BoolIndex(alongs(S)))
 
 
 ####
 #### Core Array Interface
 ####
 
-@inline Base.axes(S::SlicedArray) = getindices(axes(S.parent), odims(S))
+@inline Base.axes(S::SlicedArray) = axes(S.parent)[invmask(S)]
 
-@inline Base.size(S::SlicedArray) = getindices(size(S.parent), odims(S))
+@inline Base.size(S::SlicedArray) = size(S.parent)[invmask(S)]
 
 
 @propagate_inbounds function Base.getindex(S::SlicedArray{<:Any,N}, I::Vararg{Int,N}) where {N}
@@ -107,15 +133,7 @@ Base.IndexStyle(::Type{<:SlicedArray{<:Any,1}}) = IndexLinear()
 #    ntuple(_ -> False(), Val(N))
 #end
 
-@inline function mergeindices(S::SlicedArray{<:Any,N}, I::NTuple{N,Any}) where {N}
-    setindices(sliceaxes(axes(S.parent)), I, odims(S))
-end
-@inline function mergeaxes(S::SlicedArray{<:Any,N}, ax::NTuple{N,Any}) where {N}
-    setindices(axes(S.parent), ax, odims(S))
-end
-@inline function mergesize(S::SlicedArray{<:Any,N}, dims::NTuple{N,Integer}) where {N}
-    setindices(size(S.parent), dims, odims(S))
-end
+@inline mergeindices(S::SlicedArray, I::Anys) = setindex(sliceaxes(S.parent), I, invmask(S))
 
 @inline Base.SubArray(parent::SlicedArray, I::Tuple{}) = zeroview(parent)
 
@@ -155,7 +173,7 @@ find_sa(::Any, rest) = find_sa(rest)
 # True's followed by any number of False's) then we can optimize some operations on S as well as
 # provide additional functionality (e.g. append!, resize!, etc.).
 
-const ContiguousSlicedArray{T,N,M,idims,P} = SlicedArray{T,N,M,idims,true,P}
+const ContiguousSlicedArray{T,N,M,P,A} = SlicedArray{T,N,M,P,A,true}
 
 #function Base.copyto!(dest::ContiguousSlicedArray, doffs::Integer, src::ContiguousSlicedArray, soffs::Integer, n::Integer)
 #    setindex_shape_check(dest, innersize(src))
@@ -184,13 +202,13 @@ end
 
 
 function Base.resize!(S::ContiguousSlicedArray{<:Any,N}, dims::NTuple{N,Integer}) where {N}
-    resize!(S.parent, mergesize(S, dims))
+    resize!(S.parent, setindex(size(S.parent), dims, mask(S)))
     return S
 end
 Base.resize!(S::ContiguousSlicedArray{<:Any,N}, dims::Vararg{Integer,N}) where {N} = resize!(S, dims)
 
 function Base.sizehint!(S::ContiguousSlicedArray{<:Any,N}, dims::NTuple{N,Integer}) where {N}
-    sizehint!(S.parent, mergesize(S, dims))
+    sizehint!(S.parent, setindex(size(S.parent), dims, mask(S)))
     return S
 end
 Base.sizehint!(S::ContiguousSlicedArray{<:Any,N}, dims::Vararg{Integer,N}) where {N} = sizehint!(S, dims)
@@ -227,8 +245,8 @@ function Base.pushfirst!(S::ContiguousSlicedVector{<:Any,M}, item::AbstractArray
 end
 
 
-Base.empty!(S::ContiguousSlicedVector) = resize!(S.parent, mergesize(S, (0, )))
-Base.empty(S::ContiguousSlicedVector) = similar(S, (0, ))
+Base.empty!(S::ContiguousSlicedVector) = resize!(S.parent, setindex(size(S.parent), (0, ), mask(S)))
+#Base.empty(S::ContiguousSlicedVector) = similar(S, (0, ))
 
 
 @inline function setindex_shape_check(dest::SlicedArray, szsrc::Dims)
@@ -246,22 +264,18 @@ Base.dataids(S::SlicedArray) = Base.dataids(S.parent)
 
 Base.copy(S::SlicedArray) = SlicedArray(copy(S.parent), S.alongs)
 
-function Base.showarg(io::IO, S::SlicedArray{T,N,M}, toplevel) where {T,N,M}
+function Base.showarg(io::IO, S::SlicedArray, toplevel)
     print(io, "slice(")
-    Base.showarg(io, S.parent, false)
-    if M > 0
-        print(io, ", ", idims2string(idims(S), Val(N+M)))
+    Base.showarg(io, S.parent, false) # TODO try ture
+    if length(alongs(S)) > 0
+        print(io, ", ", join(map(a -> a ? ':' : '*', alongs(S)), ", "))
     end
     print(io, ')')
     if toplevel
-        print(io, " with ", Base.dims2string(innersize(S)), " eltype ", T)
+        print(io, " with ", Base.dims2string(innersize(S)), " eltype ", eltype(S)) # TODO innereltype? innerndims? T is a complicted subarray tytpe
     end
     return nothing
 end
-function idims2string(idims::Dims{M}, ::Val{L}) where {M,L}
-    "($(join(setindices(ntuple(_ -> '*', Val(L)), ntuple(_ -> ':', Val(M)), idims), ", ")))"
-end
-
 
 function mapslices(f, A::AbstractArray; dims)
     Asliced = slice(A, dims...)
@@ -273,9 +287,9 @@ function mapslices(f, A::AbstractArray; dims)
 end
 
 @inline function _alloc_mapslices(S::SlicedArray{<:Any,N,M}, b1) where {N,M}
-    isize = TupleToolsX.map(unsafe_length, _reshape_axes(axes(b1), Val(M)))
-    psize = setindices(size(S.parent), isize, idims(S))
-    SlicedArray(Array{eltype(b1),M+N}(undef, psize...), idims(S))
+    isize = TupleTools.map(unsafe_length, _reshape_axes(axes(b1), Val(M)))
+    psize = setindex(size(S.parent), isize, mask(S))
+    SlicedArray(Array{eltype(b1),M+N}(undef, psize...), alongs(S))
 end
 @inline _reshape_axes(axes::Tuple, ::Val{N}) where {N} = Base.rdims(Val(N), axes)
 @inline _reshape_axes(axes::NTuple{N,Any}, ::Val{N}) where {N} = axes
@@ -295,19 +309,20 @@ end
 ##### Extra
 #####
 
-@inline inneraxes(S::SlicedArray) = getindices(axes(S.parent), idims(S))
-@inline innersize(S::SlicedArray) = getindices(size(S.parent), idims(S))
+@inline inneraxes(S::SlicedArray) = axes(S.parent)[mask(S)]
+@inline innersize(S::SlicedArray) = size(S.parent)[mask(S)]
 
 
 """
-    slice(A::AbstractArray, idims...)
-    slice(A::AbstractArray, idims)
+    slice(A::AbstractArray, alongs...)
+    slice(A::AbstractArray, alongs)
 
-Return an array whose elements are views into `A` along the dimensions `idims`.
-`idims` can be specified in the following ways:
+Return an array whose elements are views into `A` along the dimensions `alongs`.
+`alongs` can be specified in the following ways:
 **TODO**
 """
-@inline slice(A::AbstractArray, idims...) = SlicedArray(A, to_idims(idims))
+@inline slice(A::AbstractArray{<:Any,L}, alongs...) where {L} = SlicedArray(A, to_alongs(alongs, Val(L)))
+@inline slice(A::AbstractArray{<:Any,L}, alongs::Tuple) where {L} = SlicedArray(A, to_alongs(alongs, Val(L)))
 
 #@inline function slice(S::SlicedArray{<:Any,N,M}, idims...) where {N,M}
 #    pdims = ntuple(identity, Val(N+M))
@@ -354,9 +369,9 @@ flatview(S::ContiguousSlicedArray) = S.parent
 #####
 
 @inline function UnsafeArrays.unsafe_uview(S::SlicedArray)
-    SlicedArray(UnsafeArrays.unsafe_uview(S.parent), idims(S), odims(S))
+    SlicedArray(UnsafeArrays.unsafe_uview(S.parent), alongs(S))
 end
 
 function Adapt.adapt_structure(T, S::SlicedArray)
-    SlicedArray(adapt(T, S.parent), idims(S), odims(S))
+    SlicedArray(adapt(T, S.parent), alongs(S))
 end
