@@ -10,7 +10,7 @@ using Test
 using UnsafeArrays
 
 using SpecialArrays
-using SpecialArrays: AbsArr, front, tuple_split, TupleN, tuple_length
+using SpecialArrays: AbsArr, front, tuple_split, TupleN
 
 
 include("util.jl")

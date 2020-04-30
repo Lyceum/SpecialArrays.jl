@@ -1,4 +1,4 @@
-testdims(L::Integer) = ntuple(i -> 1 + i, unstatic(L))
+testdims(L::Integer) = ntuple(i -> 1 + i, L)
 
 
 randlike(x::Number) = rand(typeof(x))
