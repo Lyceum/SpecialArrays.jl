@@ -1,44 +1,44 @@
 module TestSlicedArray
 
-using SpecialArrays: Glob, getindices, setindices, invdims, to_idims
+
+
 include("preamble.jl")
 
 
-const TEST_IDIMS = [
-    (:, ),
-    (*, ),
+const TEST_ALONGS = [
+    (True(), ),
+    (False(), ),
 
-    (:, :),
-    (:, *),
-    (*, :),
-    (*, *),
+    (True(), True()),
+    (True(), False()),
+    (False(), True()),
+    (False(), False()),
 ]
 
-function makedata(V::Type, idims_glob::NTuple{L,Glob}) where {L}
-    idims = to_idims(idims_glob)
-    pdims = testdims(L)
-    innersize = getindices(pdims, idims)
-    outersize = getindices(pdims, invdims(idims, Val(L)))
-    M = length(innersize)
-    N = length(outersize)
+function makedata(V::Type, alongs::NTuple{L,TypedBool}) where {L}
+    psize = testdims(L)
+    insize = tuple_getindex(psize, alongs)
+    outsize = tuple_getindex(psize, invert(alongs))
+    M = length(insize)
+    N = length(outsize)
+    alongs_int = tuple_getindex(ntuple(identity, L), alongs)
 
-    flat = rand!(Array{V,L}(undef, pdims...))
+    flat = rand!(Array{V,L}(undef, psize...))
 
-    nested = Array{Array{V,M},N}(undef, outersize...)
+    nested = Array{Array{V,M},N}(undef, outsize...)
     i = 0
-    Base.mapslices(flat, dims = sdims) do el
-        i += 1
-        nested[i] = zeros(V, innersize...)
+    Base.mapslices(flat, dims = alongs_int) do el
+        i += 1 # TODO rand!
+        nested[i] = zeros(V, insize...)
         nested[i] .= el
         el
     end
 
     return (
-        idims_glob = idims_glob,
-        idims = idims,
-        pdims = pdims,
-        innersize = innersize,
-        outersize = outersize,
+        alongs_int = alongs_int,
+        alongs_glob = map(a -> a === True() ? Colon() : *, alongs),
+        insize = insize,
+        outsize = outsize,
         M = M,
         N = N,
         nested = nested,
@@ -47,36 +47,36 @@ function makedata(V::Type, idims_glob::NTuple{L,Glob}) where {L}
 end
 
 
-showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
-@testset "al = $(showalongs(al)), V = $V" for al in TEST_IDIMS, V in (Float64,)
+showalongs(alongs) = "($(join(map(a -> a === True() ? ':' : '*', alongs), ", ")))"
+@testset "alongs = $(showalongs(alongs)), V = $V" for alongs in TEST_ALONGS, V in (Float64,)
     @testset "constructors" begin
-        @unpack flat, sdims, static_sdims, M, N = makedata(V, al)
-        Expected = SlicedArray{<:AbstractArray{V,M},N,M,Array{V,M + N},typeof(al)}
+        @unpack alongs_int, alongs_glob, flat, M, N = makedata(V, alongs)
+        Expected = SlicedArray{<:AbstractArray{V,M},N,M,Array{V,M+N},typeof(alongs)}
 
-        @test typeof(SlicedArray(flat, al)) <: Expected
-        @test_inferred SlicedArray(flat, al)
+        @test slice(flat, alongs) isa Expected
+        @test_inferred slice(flat, alongs)
+        @test slice(flat, alongs...) isa Expected
+        @test_inferred slice(flat, alongs...)
 
-        @test typeof(slice(flat, static_sdims)) <: Expected
-        @test_inferred slice(flat, static_sdims)
-        @test typeof(slice(flat, static_sdims...)) <: Expected
-        @test_inferred slice(flat, static_sdims...)
+        @test slice(flat, alongs_glob) isa Expected
+        @test_inferred slice(flat, alongs_glob)
+        @test slice(flat, alongs_glob...) isa Expected
+        @test_inferred slice(flat, alongs_glob...)
 
-        @test typeof(slice(flat, sdims)) <: Expected
-        @test typeof(slice(flat, sdims...)) <: Expected
-
-        I = map(a -> a isa True ? Colon() : *, al)
-        @test typeof(slice(flat, I...)) <: Expected
-        @test_inferred slice(flat, I...)
+        @test slice(flat, alongs_int) isa Expected
+        @test slice(flat, alongs_int...) isa Expected
     end
 
-    let V = V, al = al
+
+    let V = V, alongs = alongs
         test_array_AB() do
-            data = makedata(V, al)
-            A = SlicedArray(data.flat, al)
+            data = makedata(V, alongs)
+            A = SlicedArray(data.flat, alongs)
             B = data.nested
             return A, B
         end
     end
+
 
     @testset "mapslices ($name)" for (name, f) in (
         ("identity", identity),
@@ -84,22 +84,23 @@ showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
         ("reshape(..., reverse(dims))", el -> el isa AbstractArray ? reshape(el, reverse(size(el))) : el),
         ("reshape(..., Val(1))", el -> el isa AbstractArray ? reshape(el, Val(1)) : el),
     )
-        data = makedata(V, al)
-        B1 = mapslices(f, data.flat, dims = data.sdims)
-        B2 = SpecialArrays.mapslices(f, data.flat, dims = data.sdims)
+        data = makedata(V, alongs)
+        B1 = mapslices(f, data.flat, dims = data.alongs_int)
+        B2 = SpecialArrays.mapslices(f, data.flat, dims = data.alongs_int)
         @test B1 == B2
-        @test_inferred SpecialArrays.mapslices(f, data.flat, dims = data.static_sdims)
+        @test_inferred SpecialArrays.mapslices(f, data.flat, dims = alongs)
     end
 
+    continue
     #@testset "align" begin
-    #    data = makedata(V, al)
-    #    @test SpecialArrays.align(slice(data.flat, al), al) === data.flat
-    #    @test SpecialArrays.align(data.nested, al) == data.flat
+    #    data = makedata(V, alongs)
+    #    @test SpecialArrays.align(slice(data.flat, alongs), alongs) === data.flat
+    #    @test SpecialArrays.align(data.nested, alongs) == data.flat
     #end
 
     @testset "extra" begin
-        data = makedata(V, al)
-        A = SlicedArray(data.flat, al)
+        data = makedata(V, alongs)
+        A = SlicedArray(data.flat, alongs)
 
         @test_inferred flatview(A)
 
@@ -113,18 +114,18 @@ showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
     end
 end
 
-@testset "misc" begin
-    A = slice(rand(2, 3, 4), 1, 3)
-    @test parent(A) === A.parent
-    @test Base.dataids(A) === Base.dataids(A.parent)
-end
+#@testset "misc" begin
+#    A = slice(rand(2, 3, 4), 1, 3)
+#    @test parent(A) === A.parent
+#    @test Base.dataids(A) === Base.dataids(A.parent)
+#end
 
-@testset "UnsafeArrays" begin
-    A = slice(rand(2, 3, 4), 1, 3)
-    Av = uview(A)
-    @test parent(Av) isa UnsafeArray{eltype(A.parent),ndims(A.parent)}
-    @test A == Av
-end
+#@testset "UnsafeArrays" begin
+#    A = slice(rand(2, 3, 4), 1, 3)
+#    Av = uview(A)
+#    @test parent(Av) isa UnsafeArray{eltype(A.parent),ndims(A.parent)}
+#    @test A == Av
+#end
 
 # TODO
 #Adapt.adapt_storage(::Type{<:CartesianIndexer}, A) = CartesianIndexer(A)

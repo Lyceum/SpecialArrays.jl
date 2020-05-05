@@ -1,19 +1,19 @@
 const Glob = Union{Colon, typeof(*)}
 
-@inline to_alongs(alongs::Bools{L}, ::Val{L}) where {L} = alongs
+@inline to_alongs(alongs::TypedBools{L}, ::Val{L}) where {L} = alongs
 @inline function to_alongs(::Val{M}, ::Val{L}) where {M,L}
-    (ntuple(_ -> true, Val(M))..., ntuple(_ -> false, Val(L))...)
+    (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(L-M))...)
 end
 @inline function to_alongs(dims::Dims, ::Val{L}) where {L}
-    ntuple(dim -> (@_inline_meta; dim in dims), Val(L)) # TODO TupleTools.in
+    ntuple(dim -> (@_inline_meta; dim in dims ? True() : False()), Val(L))
 end
 @inline function to_alongs(alongs::NTuple{L,Glob}, ::Val{L}) where {L}
-    ntuple(i -> (@_inline_meta; alongs[i] === Colon()), Val(L))
+    ntuple(i -> (@_inline_meta; alongs[i] === Colon() ? True() : False()), Val(L))
 end
 
 
 # returns true iff any number of True's followed by any number of False's
-iscontiguous(::Bools) = false
+iscontiguous(::TypedBools) = false
 #iscontiguous(alongs::BoolIndex) = false # TODO
 #iscontiguous(alongs::Tuple{}) = true
 #iscontiguous(alongs::Tuple{True}) = true
@@ -25,7 +25,7 @@ iscontiguous(::Bools) = false
 #iscontiguous(alongs::Tuple{True, Vararg{TypedBool}}) = iscontiguous(tail(alongs))
 
 @pure sliceaxes(A::AbstractArray) = sliceaxes(axes(A))
-@pure sliceaxes(axes::Tuple) = TupleTools.map(Base.Slice, axes)
+@pure sliceaxes(axes::Tuple) = tuple_map(Base.Slice, axes)
 
 
 ####

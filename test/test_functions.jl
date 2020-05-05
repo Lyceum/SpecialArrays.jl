@@ -4,7 +4,7 @@ include("preamble.jl")
 
 function makedata(V::Type, M::Integer, N::Integer)
     dims = testdims(M + N)
-    innersize, outersize = tuple_split(dims, M)
+    innersize, outersize = tuple_split(dims, Val(M))
 
     nested = Array{Array{V,M},N}(undef, outersize...)
     for I in eachindex(nested)

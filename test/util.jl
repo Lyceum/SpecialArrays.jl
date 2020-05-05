@@ -27,10 +27,27 @@ function randlike!(A::AbstractArray{<:Number})
 end
 
 
+macro qe(ex)
+    Expr(:quote, MacroTools.striplines(esc(ex)))
+end
+
+macro test_inferred(ex)
+    @qe begin
+        $Test.@test (($Test.@inferred $ex); true)
+    end
+end
+
+macro test_noalloc(ex)
+    @qe begin
+        local nbytes = $memory($BenchmarkTools.@benchmark $ex samples = 1 evals = 1)
+        $iszero(nbytes) ? true : $error("Allocated $(BenchmarkTools.prettymemory(nbytes))")
+    end
+end
+
 macro test_getindex(A, I)
     @qe begin
         if $I isa $Tuple
-            $TestUtil.@test_inferred $A[$I...]
+            @test_inferred $A[$I...]
             if $index_dimsum($I...) == ()
                 $Test.@test $typeof($A[$I...]) == $eltype($A)
             else
@@ -38,7 +55,7 @@ macro test_getindex(A, I)
                 $Test.@test $eltype($A[$I...]) == $eltype($A)
             end
         else
-            $TestUtil.@test_inferred $A[$I]
+            @test_inferred $A[$I]
             if $index_dimsum($I) == () && !($I isa AbstractArray{<:Any,0})
                 $Test.@test $typeof($A[$I]) == $eltype($A)
             else
@@ -53,12 +70,12 @@ macro test_setindex!(A, I)
     @qe begin
         if $I isa $Tuple
             local x = $randlike($A[$I...])
-            $TestUtil.@test_inferred $setindex!($A, x, $I...)
+            @test_inferred $setindex!($A, x, $I...)
             $Test.@test $setindex!($A, x, $I...) === $A
             $Test.@test $A[$I...] == x
         else
             local x = $randlike($A[$I])
-            $TestUtil.@test_inferred $setindex!($A, x, $I)
+            @test_inferred $setindex!($A, x, $I)
             $Test.@test $setindex!($A, x, $I) === $A
             $Test.@test $A[$I] == x
         end
@@ -118,18 +135,18 @@ end
 macro test_copyto!(dest, src)
     @qe begin
         $randlike!($dest)
-        $TestUtil.@test_inferred $copyto!($dest, $src)
+        @test_inferred $copyto!($dest, $src)
         $Test.@test $copyto!($dest, $src) === $dest
         $Test.@test $all(I -> $dest[I] == $src[I], $eachindex($dest, $src))
         $Test.@test $dest == $src
 
         if $length($dest) > 2
             $randlike!($dest)
-            $TestUtil.@test_inferred $copyto!($dest, 2, $src, 2, 1)
+            @test_inferred $copyto!($dest, 2, $src, 2, 1)
             $Test.@test $copyto!($dest, 2, $src, 2, 1) === $dest
             $Test.@test $dest[2] == $src[2] && $dest[1] != $src[1] && $dest[3:end] != $src[3:end]
         else
-            $Test.@test_skip $TestUtil.@test_inferred $copyto!($dest, 2, $src, 2, 1)
+            $Test.@test_skip @test_inferred $copyto!($dest, 2, $src, 2, 1)
             $Test.@test_skip $copyto!($dest, 2, $src, 2, 1) === $dest
             $Test.@test_skip $dest[2] == $src[2] &&
                              $dest[1] != $src[1] &&
@@ -155,29 +172,29 @@ macro test_array_attributes(A)
         end
         $Test.@test $axes($A, $ndims($A) + 1) == $Base.OneTo(1)
 
-        $TestUtil.@test_inferred $eltype($A)
-        $TestUtil.@test_inferred $ndims($A)
-        $TestUtil.@test_inferred $axes($A)
-        $TestUtil.@test_inferred $size($A)
-        $TestUtil.@test_inferred $length($A)
+        @test_inferred $eltype($A)
+        @test_inferred $ndims($A)
+        @test_inferred $axes($A)
+        @test_inferred $size($A)
+        @test_inferred $length($A)
     end
 end
 
 macro test_similar(A, T, dims)
     @qe begin
-        $TestUtil.@test_inferred $similar($A)
+        @test_inferred $similar($A)
         $Test.@test $eltype($similar($A)) === $eltype($A)
         $Test.@test $size($similar($A)) == $size($A)
 
-        $TestUtil.@test_inferred $similar($A, $T)
+        @test_inferred $similar($A, $T)
         $Test.@test $eltype($similar($A, $T)) === $T
         $Test.@test $size($similar($A, $T)) == $size($A)
 
-        $TestUtil.@test_inferred $similar($A, $dims)
+        @test_inferred $similar($A, $dims)
         $Test.@test eltype($similar($A, $dims)) === $eltype($A)
         $Test.@test size($similar($A, $dims)) == $dims
 
-        $TestUtil.@test_inferred $similar($A, $T, $dims)
+        @test_inferred $similar($A, $T, $dims)
         $Test.@test eltype($similar($A, $T, $dims)) === $T
         $Test.@test size($similar($A, $T, $dims)) == $dims
     end

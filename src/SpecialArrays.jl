@@ -3,14 +3,10 @@ module SpecialArrays
 using Adapt
 
 using Base: @propagate_inbounds, @pure, @_inline_meta
-using Base: require_one_based_indexing, setindex, unsafe_length
-using Base.Broadcast: Broadcast, ArrayStyle, Broadcasted
+using Base: require_one_based_indexing, tail, unsafe_length
 
 using DocStringExtensions
-using MacroTools: @forward
 using Requires: @require
-using Shapes
-using StaticNumbers
 using UnsafeArrays
 
 const AbstractArrayOfSimilarArrays{V,M,N} = AbstractArray{<:AbstractArray{V,M},N}
@@ -19,10 +15,7 @@ const AbstractArrayOfArrays{N} = AbstractArray{<:AbstractArray}
 
 const Idx = Union{Colon,Real,AbstractArray} # TODO
 
-include("TupleTools.jl")
-using .TupleTools
-using .TupleTools: TupleN, Some, Anys # TODO
-
+include("tuple.jl")
 include("util.jl")
 include("compat.jl")
 include("viewtype.jl")

@@ -26,7 +26,7 @@ FlattenedArray(parent::AbstractArray) = FlattenedArray(parent, inneraxes(parent)
 
 # standard Cartesian indexing
 @propagate_inbounds function Base.getindex(F::FlattenedArray{<:Any,L}, I::Vararg{Int,L}) where {L}
-    Iout, Iin = _splitindices(F, I)
+    Iin, Iout = splitindices(F, I)
     F.parent[Iout...][Iin...]
 end
 
@@ -35,13 +35,13 @@ end
     v,
     I::Vararg{Int,L},
 ) where {L}
-    Iout, Iin = _splitindices(F, I)
+    Iin, Iout = splitindices(F, I)
     F.parent[Iout...][Iin...] = v
     return F
 end
 
-@inline function _splitindices(F::FlattenedArray{<:Any,L,M,N}, I::NTuple{L,Int}) where {L,M,N}
-    tail(I, Val(N)), front(I, Val(M))
+@inline function splitindices(F::FlattenedArray{<:Any,L,M,N}, I::NTuple{L,Int}) where {L,M,N}
+    tuple_split(I, Val(M))
 end
 
 
