@@ -5,19 +5,12 @@
 
 using SpecialArrays, ElasticArrays
 
-dims=(2,3,4)
-x = reshape(1:prod(dims), dims)
-e = ElasticArray(x)
-s1 = slice(copy(e), :, :, *)
-s2 = slice(copy(e), :, :, *)
-
-
-
-dims=(2,3)
-x = reshape(1:prod(dims), dims)
-e = ElasticArray(x)
-s = slice(e, :, *)
-n = [Array(el) for el in s]
-ret = all(n) do x
-    pushfirst!(s, x) === s
+n = [[1 2; 3 4], [5 6; 7 8]]
+F = flatview(n)
+len = innerlength(n)
+for i = 1:length(n)
+    a = n[i]
+    offs = (i - 1) * len + 1
+    @info offs:(offs+len-1)
+    @info F[offs:offs+len-1] == vec(n[i])
 end

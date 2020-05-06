@@ -330,6 +330,12 @@ function test_array_AB(AB::Function)
     end
 
     @testset "copy/copyto!/equality" begin
+        let (A1, _) = AB()
+            A2 = copy(A1)
+            @test A1 == A2
+            randlike!(A1)
+            @test A1 != A2
+        end
         let (A, B) = AB()
             @test_copyto! A B
         end

@@ -27,17 +27,33 @@ end
     @testset "constructors" begin
         data = makedata(V, M, N)
         Expected = FlattenedArray{V,M+N,M,N,typeof(data.nested),typeof(data.inneraxes)}
+        @test flatview(data.nested) isa Expected
+        @test_inferred flatview(data.nested)
 
-        @test typeof(Expected(data.nested, data.inneraxes)) == Expected
-        @test_inferred Expected(data.nested, data.inneraxes)
+        @test flatview(data.flat) === data.flat
+        @test flatview(data.nested) == data.flat
+    end
 
-        @test typeof(FlattenedArray(data.nested)) == Expected
-        @test_inferred FlattenedArray(data.nested)
+    @testset "basic" begin
+        data = makedata(V, M, N)
+        F = flatview(data.nested)
+        F[:] .= 1:length(F)
+        len = prod(data.innersize)
+        for i = 1:length(data.nested)
+            a = data.nested[i]
+            offs = (i - 1) * len + 1
+            @test F[offs:offs+len-1] == vec(data.nested[i])
+        end
+    end
 
-        @test typeof(FlattenedArray(data.nested, data.inneraxes)) == Expected
-        @test_inferred FlattenedArray(data.nested, data.inneraxes)
-
-        @test flatview(data.nested) === FlattenedArray(data.nested)
+    @testset "flatten" begin
+        data = makedata(V, M, N)
+        @test flatten(data.flat) === data.flat
+        @test flatten(data.nested) == data.flat
+        nested = copy(data.nested)
+        flat = flatten(nested)
+        rand!(flat)
+        @test nested == data.nested
     end
 
     let V = V, M = M, N = N
@@ -48,23 +64,6 @@ end
             return A, B
         end
     end
-
-    @testset "extra" begin
-        data = makedata(V, M, N)
-        F = flatview(data.nested)
-        @test F.inneraxes === inneraxes(F) === inneraxes(data.nested)
-        @test map(length, F.inneraxes) === innersize(F) === innersize(data.nested)
-        @test eltype(F) === innereltype(data.nested)
-
-        @test flatten(data.nested) == flatview(data.nested)
-    end
-end
-
-@testset "{flatview,flatten}(flat)" begin
-    A = rand(10)
-    @test flatview(A) === A
-    @test flatten(A) == A
-    @test flatten(A) !== A
 end
 
 @testset "aliasing" begin

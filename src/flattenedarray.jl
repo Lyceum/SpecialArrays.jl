@@ -1,18 +1,16 @@
-struct FlattenedArray{V,L,M,N,P<:AbstractArray,InAx<:NTuple{M,Any}} <: AbstractArray{V,L}
+struct FlattenedArray{V,L,M,N,P<:NestedArray{V,M,N},InAx<:Anys{M}} <: AbstractArray{V,L}
     parent::P
     inneraxes::InAx
-    @inline function FlattenedArray{V,L,M,N,P,InAx}(parent, inneraxes) where {V,L,M,N,P<:AbstractArray,InAx<:NTuple{M,Any}}
+    @inline function FlattenedArray{V,L,M,N,P,InAx}(parent, inneraxes) where {V,L,M,N,P<:NestedArray{V,M,N},InAx<:Anys{M}}
         new{V,L,M,N,P,InAx}(parent, inneraxes)
     end
 end
 
-function FlattenedArray(parent::AbstractArray, inneraxes::NTuple{M,Any}) where {M}
-    V = innereltype(parent)
-    N = ndims(parent)
+@inline function FlattenedArray(parent::NestedArray{V,M,N}, inneraxes::Anys{M}) where {V,M,N}
     FlattenedArray{V,M+N,M,N,typeof(parent),typeof(inneraxes)}(parent, inneraxes)
 end
 
-FlattenedArray(parent::AbstractArray) = FlattenedArray(parent, inneraxes(parent))
+FlattenedArray(parent::NestedArray) = FlattenedArray(parent, inneraxes(parent))
 
 
 ####
@@ -25,23 +23,19 @@ FlattenedArray(parent::AbstractArray) = FlattenedArray(parent, inneraxes(parent)
 
 
 # standard Cartesian indexing
-@propagate_inbounds function Base.getindex(F::FlattenedArray{<:Any,L}, I::Vararg{Int,L}) where {L}
-    Iin, Iout = splitindices(F, I)
+@propagate_inbounds function Base.getindex(F::FlattenedArray{<:Any,L,M}, I::Vararg{Int,L}) where {L,M}
+    Iin, Iout = tuple_split(I, Val(M))
     F.parent[Iout...][Iin...]
 end
 
 @propagate_inbounds function Base.setindex!(
-    F::FlattenedArray{<:Any,L},
+    F::FlattenedArray{<:Any,L,M},
     v,
     I::Vararg{Int,L},
-) where {L}
-    Iin, Iout = splitindices(F, I)
+) where {L,M}
+    Iin, Iout = tuple_split(I, Val(M))
     F.parent[Iout...][Iin...] = v
     return F
-end
-
-@inline function splitindices(F::FlattenedArray{<:Any,L,M,N}, I::NTuple{L,Int}) where {L,M,N}
-    tuple_split(I, Val(M))
 end
 
 
@@ -62,6 +56,7 @@ function Base.showarg(io::IO, A::FlattenedArray, toplevel)
 end
 
 
+# TODO verify that dataids should be the union of the child arrays
 # Because F::FlattenedArray is a flattened view of an AbstractArray{<:AbstractArray},
 # Base.dataids should return the equivalent of union(Base.dataids(x), Base.dataids.(x)...).
 # This works, but the default recursive implementation is slow when length(parent(F)) is large.
@@ -90,13 +85,14 @@ end
 #### Extra
 ####
 
-@inline inneraxes(F::FlattenedArray) = F.inneraxes
-
 """
     flatview(A::AbstractArray{<:AbstractArray{V,M},N})
 
-Return a `M+N`-dimensional flattened view of `A`. Throws an error if the elements of `A` do not
-have equal size. If `A` is not a nested array, the return value is `A` itself.
+Return a `M+N`-dimensional flattened view of `A`. If `A` is not a subtype of
+`AbstractArray{<:AbstractArray{V,M},N}`, the return value is `A` itself.
+Throws an error if the elements of `A` do not have equal size.
+
+# Examples
 
 ```jldoctest
 julia> A = [reshape(Vector(1:6), (2, 3)), reshape(Vector(7:12), (2, 3))]
@@ -118,11 +114,8 @@ julia> B == reshape(hcat(B...), (2, 3, 2))
 true
 ```
 """
-flatview(A::AbstractArrayOfArrays) = FlattenedArray(A)
+flatview(A::NestedArray) = FlattenedArray(A)
 flatview(A::AbstractArray) = A
-
-
-
 
 
 """
@@ -130,4 +123,5 @@ flatview(A::AbstractArray) = A
 
 Like [`flatview`](@ref) but returns a new array.
 """
-flatten(A::AbstractArray) = copy(flatview(A))
+flatten(A::NestedArray) = copy(flatview(A))
+flatten(A::AbstractArray) = A
