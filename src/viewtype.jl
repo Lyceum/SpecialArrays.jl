@@ -7,13 +7,10 @@
 @inline viewtype(A::AbstractArray, I::Tuple) = _viewtype(A, I)
 @inline viewtype(A::AbstractArray, I...) = _viewtype(A, I)
 
-@generated function _viewtype(A::AA, I::II) where {AA<:AbstractArray,II<:Tuple}
+function _viewtype(A::AA, I::II) where {AA<:AbstractArray,II<:Tuple}
     T = Core.Compiler.return_type(view, Tuple{AA,II.parameters...})
-    isconcretetype(T) ? :($T) : :(__viewtype(A, I))
+    isconcretetype(T) ? T : __viewtype(A, I)
 end
-#@inline function _viewtype(A::AA, I::II) where {AA<:AbstractArray,II<:Tuple}
-#    typeof(view(A, I...))
-#end
 
 # Workaround for https://github.com/JuliaArrays/StaticArrays.jl/issues/705
 @inline _viewtype(A::AbstractArray, ::Tuple{}) = typeof(zeroview(A))
@@ -28,8 +25,8 @@ end
         msg = join((
             "Unable to infer the return type of $(formatcall(view, AA, II.parameters...)). ",
             "Only other option is to try typeof($(formatcall(view, typeof(A), I...))) but ",
-            "that resulted in the below error. Try passing in valid indices or implement:\n",
-            "   $(formatcall(viewtype, typeof(A), typeof.(I)...))\n",
+            "that resulted in the below error. Try passing in a non-empty array or implement:\n",
+            "    viewtype(::$(nameof(typeof(A))), I::Tuple))\n",
         ))
         printstyled(stderr, msg, color = :light_red)
         rethrow(e)

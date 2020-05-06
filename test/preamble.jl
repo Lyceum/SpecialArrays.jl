@@ -2,6 +2,7 @@ using Adapt: Adapt, adapt
 using Base: index_shape, index_dimsum, index_ndims, to_indices
 using Base: mightalias, unalias, dataids, unsafe_convert
 using BenchmarkTools
+using ElasticArrays
 using MacroTools
 using Parameters
 using Random

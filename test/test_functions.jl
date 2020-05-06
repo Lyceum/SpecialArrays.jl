@@ -11,12 +11,8 @@ function makedata(V::Type, M::Integer, N::Integer)
         nested[I] = rand!(Array{V,M}(undef, innersize...))
     end
 
-    anynested = []
-    append!(anynested, nested)
-
     return (
         nested = nested,
-        anynested = anynested,
         flat = reshape(reduce(hcat, nested), dims),
         dims = dims,
         innersize = innersize,
@@ -30,39 +26,33 @@ end
     @testset "inner_*" begin
         data = makedata(V, M, N)
         A = data.nested
-        B = data.anynested
 
         @test innereltype(A) === V
         @test_inferred innereltype(A)
         @test innereltype(typeof(A)) === V
         @test_inferred innereltype(typeof(A))
-        @test innereltype(B) === V
 
         @test innerndims(A) == M
         @test_inferred innerndims(A)
         @test innerndims(typeof(A)) == M
         @test_inferred innerndims(typeof(A))
-        @test innerndims(B) == M
 
         @test inneraxes(A) == data.inneraxes
         @test_inferred inneraxes(A)
-        @test inneraxes(B) == data.inneraxes
 
         @test innersize(A) == data.innersize
         @test_inferred innersize(A)
-        @test innersize(B) == data.innersize
 
         @test innerlength(A) == prod(data.innersize)
         @test_inferred innerlength(A)
-        @test innerlength(B) == prod(data.innersize)
     end
 end
 
 @testset "inner_* errors" begin
     A = [zeros(2), zeros(3)]
-    @test_throws ErrorException inneraxes(A)
-    @test_throws ErrorException innersize(A)
-    @test_throws ErrorException innerlength(A)
+    @test_throws ArgumentError inneraxes(A)
+    @test_throws ArgumentError innersize(A)
+    @test_throws ArgumentError innerlength(A)
 end
 
 end # module

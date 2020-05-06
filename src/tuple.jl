@@ -45,7 +45,6 @@ __tuple_setindex(t::Tuple{}, v::Tuple{}, I::Tuple{}) = ()
 __tuple_setindex(t::Some{Any}, v::Tuple{}, I::Some{False}) = t
 
 
-@inline static_sum(t::TypedBools) = Val(length(t[t]))
 
 @inline tuple_map(f, t::Anys{N}) where {N} = ntuple(i -> (@_inline_meta; f(t[i])), Val(N))
 

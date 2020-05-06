@@ -13,16 +13,14 @@ end
 
 
 # returns true iff any number of True's followed by any number of False's
-iscontiguous(::TypedBools) = false
-#iscontiguous(alongs::BoolIndex) = false # TODO
-#iscontiguous(alongs::Tuple{}) = true
-#iscontiguous(alongs::Tuple{True}) = true
-#iscontiguous(alongs::Tuple{False}) = true
-#iscontiguous(alongs::Tuple{True, Vararg{False}}) = true
-#iscontiguous(alongs::Tuple{True, Vararg{True}}) = true
-#iscontiguous(alongs::Tuple{False, Vararg{False}}) = true
-#iscontiguous(alongs::Tuple{False, Vararg{TypedBool}}) = false
-#iscontiguous(alongs::Tuple{True, Vararg{TypedBool}}) = iscontiguous(tail(alongs))
+iscontiguous(alongs::Tuple{}) = true
+iscontiguous(alongs::Tuple{True}) = true
+iscontiguous(alongs::Tuple{False}) = true
+iscontiguous(alongs::Tuple{True, Vararg{False}}) = true
+iscontiguous(alongs::Tuple{True, Vararg{True}}) = true
+iscontiguous(alongs::Tuple{False, Vararg{False}}) = true
+iscontiguous(alongs::Tuple{False, Vararg{TypedBool}}) = false
+@inline iscontiguous(alongs::Tuple{True, Vararg{TypedBool}}) = iscontiguous(tail(alongs))
 
 @pure sliceaxes(A::AbstractArray) = sliceaxes(axes(A))
 @pure sliceaxes(axes::Tuple) = tuple_map(Base.Slice, axes)
@@ -33,6 +31,7 @@ iscontiguous(::TypedBools) = false
 ####
 
 argerror(msg::AbstractString) = throw(ArgumentError(msg))
+dimerror(msg::AbstractString) = throw(DimensionMismatch(msg))
 
 # modified from Base (https://github.com/JuliaLang/julia/blob/04cf2d5f26b7b1ce58ece7c076ff97561db01722/base/indices.jl#L189)
 @inline function setindex_shape_check(szdest::Dims, szsrc::Dims)

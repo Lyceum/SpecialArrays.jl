@@ -9,7 +9,7 @@ using DocStringExtensions
 using Requires: @require
 using UnsafeArrays
 
-const AbstractArrayOfSimilarArrays{V,M,N} = AbstractArray{<:AbstractArray{V,M},N}
+const NestedArray{V,M,N} = AbstractArray{<:AbstractArray{V,M},N}
 const AbstractArrayOfArrays{N} = AbstractArray{<:AbstractArray}
 
 
@@ -23,7 +23,7 @@ include("viewtype.jl")
 export innereltype, innerndims, inneraxes, innersize, innerlength
 include("functions.jl")
 
-export SlicedArray, slice
+export SlicedArray, slice, align
 include("slicedarray.jl")
 
 export FlattenedArray, flatview, flatten

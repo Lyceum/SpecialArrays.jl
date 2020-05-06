@@ -18,7 +18,10 @@ end
     inaxes::Anys{M},
 ) where {L,P<:AbstractArray{<:Any,L},A<:TypedBools{L},N,M}
     I = tuple_setindex(sliceaxes(parent), tuple_map(first, outaxes), invert(alongs))
-    T = viewtype(parent, I)
+    # TODO: How safe is this? Possible alternatives:
+    #   1. Throw an error if parent is empty
+    #   2. Try Core.Compile.return_type, else (1)
+    T = typeof(@inbounds view(parent, I...))
     SlicedArray{T,N,M,P,A,iscontiguous(alongs)}(parent, alongs)
 end
 
@@ -73,9 +76,22 @@ Base.IndexStyle(::Type{<:SlicedArray{<:Any,1}}) = IndexLinear()
 # Workaround for https://github.com/JuliaArrays/StaticArrays.jl/issues/705
 @inline Base.SubArray(parent::SlicedArray, I::Tuple{}) = zeroview(parent)
 
-@inline function mergeindices(S::SlicedArray{<:Any,N}, I::NTuple{N,Int}) where {N}
+@inline function mergeindices(S::SlicedArray{<:Any,N}, I::Anys{N}) where {N}
     tuple_setindex(sliceaxes(S.parent), I, invert(S.alongs))
 end
+
+
+function Base.resize!(S::SlicedArray{<:Any,N}, dims::NTuple{N,Integer}) where {N}
+    resize!(S.parent, tuple_setindex(size(S.parent), dims, invert(S.alongs)))
+    return S
+end
+Base.resize!(S::SlicedArray{<:Any,N}, dims::Vararg{Integer,N}) where {N} = resize!(S, dims)
+
+function Base.sizehint!(S::SlicedArray{<:Any,N}, dims::NTuple{N,Integer}) where {N}
+    sizehint!(S.parent, tuple_setindex(size(S.parent), dims, invert(S.alongs)))
+    return S
+end
+Base.sizehint!(S::SlicedArray{<:Any,N}, dims::Vararg{Integer,N}) where {N} = sizehint!(S, dims)
 
 
 ####
@@ -83,48 +99,47 @@ end
 ####
 
 # If only the leading dimensions of S.parent are sliced (i.e. S.alongs consists of any number of
-# True's followed by any number of False's) then we can optimize some operations on S as well as
-# provide additional functionality (e.g. append!, resize!, etc.).
+# True's followed by any number of False's) then we can optimize some functions, and if N==1
+# then functions like push! are well-defined, assuming the underlying parent supports those
+# operations (e.g. ElasticArray).
 
 const ContiguousSlicedArray{T,N,M,P,A} = SlicedArray{T,N,M,P,A,true}
+const ContiguousSlicedVector{T,M,P,A} = ContiguousSlicedArray{T,1,M,P,A}
 
-function Base.append!(S::ContiguousSlicedArray, iter::ContiguousSlicedArray)
+
+function Base.append!(S::ContiguousSlicedVector, iter::ContiguousSlicedVector)
     setindex_shape_check(S, innersize(iter))
     append!(S.parent, iter.parent)
     return S
 end
 
-function Base.prepend!(S::ContiguousSlicedArray, iter::ContiguousSlicedArray)
+function Base.prepend!(S::ContiguousSlicedVector, iter::ContiguousSlicedVector)
     setindex_shape_check(S, innersize(iter))
     prepend!(S.parent, iter.parent)
     return S
 end
 
-function Base.resize!(S::ContiguousSlicedArray{<:Any,N}, dims::NTuple{N,Integer}) where {N}
-    resize!(S.parent, tuple_setindex(size(S.parent), dims, invert(S.alongs)))
+# TODO can probably speed this up by doing resize + setindex like in Base
+function Base.prepend!(S::ContiguousSlicedVector, iter)
+    for el in iter
+        prepend!(S.parent, el)
+    end
     return S
 end
-function Base.resize!(S::ContiguousSlicedArray{<:Any,N}, dims::Vararg{Integer,N}) where {N}
-    resize!(S, dims)
-end
-
-function Base.sizehint!(S::ContiguousSlicedArray{<:Any,N}, dims::NTuple{N,Integer}) where {N}
-    sizehint!(S.parent, tuple_setindex(size(S.parent), dims, invert(S.alongs)))
-    return S
-end
-function Base.sizehint!(S::ContiguousSlicedArray{<:Any,N}, dims::Vararg{Integer,N}) where {N}
-    sizehint!(S, dims)
-end
 
 
-const ContiguousSlicedVector{T,M,P,A} = ContiguousSlicedArray{T,1,M,P,A}
 
 function Base.pop!(S::ContiguousSlicedVector)
     isempty(S) && argerror("array must be non-empty")
-    item = last(S) # TODO convert to Array?
+    # 1) We need to copy the last element as the view could be invalidated by resizing S.parent
+    # 2) copy(SubArray{T,0,...}) returns type T, so we wrap it with a 0-dimensional array
+    item = _maybe_wrap(eltype(S.parent), copy(last(S)))
     resize!(S, length(S) - 1)
     return item
 end
+
+@inline _maybe_wrap(::Type{T}, x::AbstractArray{T}) where {T} = x
+@inline _maybe_wrap(::Type{T}, x::T) where {T} = fill(x)
 
 # TODO need something like resizebeg! for ElasticArray
 #function Base.popfirst!(S::ContiguousSlicedVector)
@@ -229,34 +244,20 @@ end
 flatview(S::SlicedArray) = FlattenedArray(S)
 flatview(S::ContiguousSlicedArray) = S.parent
 
-## align(slice(A, al), al) can just return the parent
-#align(S::SlicedArray{<:Any,<:Any,<:Any,<:Any,A}, alongs::A) where {A<:TupleN{TypedBool}} = S.parent
+# align(slice(A, al), al) can just return the parent
+align(S::SlicedArray{<:Any,<:Any,<:Any,<:Any,A}, alongs::A) where {A<:TupleN{TypedBool}} = S.parent
 
-#function align(A::AbstractArrayOfArrays, alongs::NTuple{L,TypedBool}) where {L}
-#    if innerndims(A) != static_sum(alongs)
-#        throw(ArgumentError("Must specify exactly M dimensions to be taken up by the inner arrays"))
-#    end
-#    dims = ntuple(identity, Val(L))
-#    permuted_dims = (dims[alongs]..., dims[static_map(!, alongs)]...)
-#    return PermutedDimsArray(flatview(A), permuted_dims)
-#end
-#align(A::AbstractArrayOfArrays, alongs::TypedBool...) = align(A, alongs)
+function align(A::NestedArray, alongs::NTuple{L,TypedBool}) where {L}
+    if innerndims(A) != length(tuple_getindex(alongs, alongs))
+        argerror("Must specify exactly M dimensions to be taken up by the inner arrays")
+    end
+    dims = ntuple(identity, Val(L))
+    permuted_dims = (tuple_getindex(dims, alongs)..., tuple_getindex(dims, invert(alongs))...)
+    return PermutedDimsArray(flatview(A), permuted_dims)
+end
 
-#@inline function align(A::AbstractArrayOfArrays, alongs::NTuple{L,Union{Colon,typeof(*)}}) where {L}
-#    align(A, ntuple(i -> (@_inline_meta; alongs[i] === Colon() ? True() : False()), Val(L)))
-#end
-#@inline align(A::AbstractArrayOfArrays, alongs::Vararg{Union{Colon,typeof(*)}}) = align(A, alongs)
-
-#@inline function align(A::AbstractArrayOfArrays, alongs::NTuple{L,Integer}) where {L}
-#    align(A, ntuple(dim -> (@_inline_meta; static_in(dim, alongs)), Val(L)))
-#end
-#@inline align(A::AbstractArrayOfArrays, alongs::Integer...) = align(A, alongs)
-
-#function align(A::AbstractArrayOfArrays, ::Val{M}) where {M}
-#    alongs = (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(ndims(A)))...)
-#    align(A, alongs)
-#end
-
+align(A::NestedArray{<:Any,M,N}, alongs...) where {M,N} = align(A, to_alongs(alongs, Val(M+N)))
+align(A::NestedArray{<:Any,M,N}, alongs::Tuple) where {M,N} = align(A, to_alongs(alongs, Val(M+N)))
 
 
 #####
