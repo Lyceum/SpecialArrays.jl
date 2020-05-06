@@ -241,6 +241,16 @@ end
     SlicedArray(A, to_alongs(alongs, Val(L)))
 end
 
+"""
+    slice(A, ::Val{M})
+
+Equivalent to slice(A, 1:M...)
+"""
+@inline function slice(A::AbstractArray{<:Any,L}, ::Val{M}) where {L,M}
+    alongs = (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(L-M))...)
+    slice(A, alongs)
+end
+
 flatview(S::SlicedArray) = FlattenedArray(S)
 flatview(S::ContiguousSlicedArray) = S.parent
 

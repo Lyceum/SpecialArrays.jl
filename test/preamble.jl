@@ -11,7 +11,7 @@ using Test
 using UnsafeArrays
 
 using SpecialArrays
-using SpecialArrays: TypedBool, True, False
+using SpecialArrays: TypedBool, TypedBools, True, False
 using SpecialArrays: tuple_getindex, tuple_setindex, tuple_map, tuple_split, invert
 
 include("util.jl")

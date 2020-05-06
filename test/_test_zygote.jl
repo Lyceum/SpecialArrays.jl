@@ -2,34 +2,29 @@ module TestZygote
 
 using Zygote
 
-using SpecialArrays: along2string
-using SpecialArrays: True, False, TypedBool, static_map
-
 include("preamble.jl")
 
 const TEST_ALONGS = [
-    (True(), True(), False()),
-    (True(), False(), False()),
-
-    (False(), True(), True()),
-    (False(), False(), True()),
+    (True(), False()),
+    (False(), True()),
 ]
 
-function makedata(al::TupleN{TypedBool})
-    L = length(al)
-    pdims = testdims(L)
-    sdims = findall(al)
-    innersize = pdims[al]
-    outersize = pdims[static_map(!, al)]
-    M, N = length(innersize), length(outersize)
+function makedata(alongs::TypedBools{L}) where {L}
+    psize = testdims(L)
+    insize = tuple_getindex(psize, alongs)
+    outsize = tuple_getindex(psize, invert(alongs))
+    M = length(insize)
+    N = length(outsize)
+    alongs_int = tuple_getindex(ntuple(identity, L), alongs)
 
-    flat = rand!(Array{Float64,L}(undef, pdims...))
+    flat = Array{Float64,L}(undef, psize...)
+    flat[:] .= 1:length(flat)
+    nested = Array{Array{Float64,M},N}(undef, outsize...)
 
-    nested = Array{Array{Float64,M},N}(undef, outersize...)
     i = 0
-    Base.mapslices(flat, dims = sdims) do el
+    Base.mapslices(flat, dims = alongs_int) do el
         i += 1
-        nested[i] = zeros(Float64, innersize...)
+        nested[i] = zeros(Float64, insize...)
         nested[i] .= el
         el
     end
@@ -37,90 +32,45 @@ function makedata(al::TupleN{TypedBool})
     return (nested = nested, flat = flat)
 end
 
-showalongs(al) = "($(join(map(SpecialArrays.along2string, al), ", ")))"
-#@testset "al = $(showalongs(al))" for al in TEST_ALONGS
-#    @testset "slice" begin
-#        data = makedata(al)
-#        gs1 = Zygote.gradient(n -> prod(sum(n)), data.nested)
-#        gs2 = Zygote.gradient(f -> prod(sum(slice(f, al))), data.flat)
-#        @test first(gs2) == reshape(mapreduce(vec, vcat, first(gs1)), size(data.flat))
-#    end
-#end
+showalongs(alongs) = "($(join(map(a -> a === True() ? ':' : '*', alongs), ", ")))"
 
-    #@testset "Zygote" begin
-    #    data = makedata(Float64, (True(), False(), True()))
-    #    x = rand!(zeros(last(data.innersize)))
-    #    g1 = Zygote.gradient(x -> sum(sum(a -> a * x, data.nested)), x)
-    #    g2 = Zygote.gradient(x -> sum(sum(a -> a * x, slice(data.flat, data.sdims))), x)
-    #    @test g1 == g2
-    #    @test_skip @test_inferred Zygote.gradient(
-    #        x -> sum(sum(a -> a * x, slice(data.flat, data.static_sdims))),
-    #        x,
-    #    )
-    #end
-
-    #@testset "Zygote" begin
-    #    data = makedata(V, M, N)
-    #    g1 = Zygote.gradient(n -> prod(sum(reshape(hcat(n...), size(f)), dims=1)), data.nested)
-    #    g2 = Zygote.gradient(n -> prod(sum(flatview(n), dims=1)), data.nested)
-    #    g3 = Zygote.gradient(s -> prod(sum(flatview(s), dims=1)), s)
-    #    @test g1 == g2
-    #    @test_skip @test_inferred Zygote.gradient(A -> sum(flatview(A) * x), data.nested)
-    #en
-
-end # module
-
-using Zygote
-@warn "YOO"
-using SpecialArrays: along2string
-using SpecialArrays: True, False, TypedBool, static_map
-
-include("preamble.jl")
-
-al = (False(), True(), True())
-data = TestZygote.makedata(al)
-gs1 = Zygote.gradient(n -> prod(sum(n)), data.nested)
-gs2 = Zygote.gradient(f -> prod(sum(slice(f, al))), data.flat)
-@assert length(gs1) == length(gs2) == 1
-@info "" size(first(gs1)) size(first(first(gs1))) size(first(gs2))
-
-
-#@inline function unslice(A::AbstractArray, I::NTuple{L,Union{Colon,typeof(*)}}) where {L}
-#    alongs = ntuple(i -> (Base.@_inline_meta; I[i] === Colon() ? True() : False()), Val(L))
-#    SlicedArray(reshape(A, Val(L)), alongs)
-#end
-#@inline slice(A::AbstractArray, I::Vararg{Union{Colon,typeof(*)},L}) where {L} = slice(A, I)
-
-function unslice(A::AbstractArray, alongs::NTuple{N,TypedBool}) where {N}
-    dims = ntuple(identity, Val(N))
-    permuted_dims = (dims[alongs]..., dims[static_map(!, alongs)]...)
-    return PermutedDimsArray(flatview(A), permuted_dims)
-end
-
-flat = rand(2,3,4)
-alongs = (True(), False(), True())
-A = slice(flat, alongs)
-B = [Array(a) for a in A]
-@assert A == B
-@assert flat == parent(A) == unslice(A, alongs) == unslice(B, alongs)
-
-function bench(A)
-    for I in CartesianIndices(A)
-        @inbounds A[I] .*= 2
+@testset "slice" begin
+    flat = rand(2, 3)
+    let
+        gs1 = Zygote.gradient(x -> prod(sum(eachcol(x))), flat)
+        gs2 = Zygote.gradient(x -> prod(sum(slice(x, :, *))), flat)
+        @test first(gs1) == first(gs2)
+    end
+    let
+        gs1 = Zygote.gradient(x -> prod(sum(eachrow(x))), flat)
+        gs2 = Zygote.gradient(x -> prod(sum(slice(x, *, :))), flat)
+        @test first(gs1) == first(gs2)
     end
 end
 
-flat = rand(20, 30, 400)
-P = PermutedDimsArray(flat, (3, 2, 1))
-#@btime bench($flat)
-#@btime bench($P)
-using JuliennedArrays
-const JA = JuliennedArrays
-alongs = (True(), False(), True())
-ja_alongs = Tuple(al === True() ? JA.True() : JA.False() for al in alongs)
-A = slice(flat, alongs)
-B = [Array(a) for a in A]
-C = Align(B, ja_alongs...)
-D = unslice(B, alongs)
-@btime bench($C); @btime bench($D);
-nothing
+@testset "align/flatview" begin
+    nested = [rand(2) for _=1:3]
+    # Because of the splat in the below hcat, gs1 is a tuple-of-vectors, while gs2 is a
+    # vector-of-vectors, so we have to convert for the comparison.
+    # See also: https://github.com/FluxML/Zygote.jl/pull/501
+    let
+        gs1 = Zygote.gradient(x -> prod(sum(eachcol(hcat(x...)))), nested)
+        gs2 = Zygote.gradient(x -> prod(sum(eachcol(align(x, :, *)))), nested)
+        gs3 = Zygote.gradient(x -> prod(sum(eachcol(flatview(x)))), nested)
+        gs1 = Tuple(Array(el) for el in first(gs1))
+        gs2 = Tuple(Array(el) for el in first(gs2))
+        gs3 = Tuple(Array(el) for el in first(gs3))
+        @test gs1 == gs2
+        @test gs1 == gs3
+    end
+    let
+        # align(A, :, *) == align(A, *, :)
+        gs1 = Zygote.gradient(x -> prod(sum(eachcol(hcat(x...)'))), nested)
+        gs2 = Zygote.gradient(x -> prod(sum(eachcol(align(x, *, :)))), nested)
+        gs1 = Tuple(Array(el) for el in first(gs1))
+        gs2 = Tuple(Array(el) for el in first(gs2))
+        @test gs1 == gs2
+    end
+end
+
+end # module
