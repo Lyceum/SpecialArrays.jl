@@ -10,8 +10,8 @@ end
 @inline function to_alongs(alongs::NTuple{L,Glob}, ::Val{L}) where {L}
     ntuple(i -> (@_inline_meta; alongs[i] === Colon() ? True() : False()), Val(L))
 end
+to_alongs(alongs::Tuple{}, ::Val{L}) where {L} = ntuple(_ -> False(), Val(L))
 to_alongs(alongs, ::Val) = argerror("Invalid alongs: $alongs")
-to_alongs(alongs::Tuple{}, ::Val) = ()
 
 
 # returns true iff any number of True's followed by any number of False's
