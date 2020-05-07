@@ -1,72 +1,65 @@
 """
-    innereltype(A::Type{<:AbstractArray})
-    innereltype(A::AbstractArray)
+    inner_eltype(A::Type{<:AbstractArray{<:AbstractArray{V,M},N}})
+    inner_eltype(A::AbstractArray{<:AbstractArray{V,M},N})
 
-Returns the common `eltype` of the elements of `A`.
+Returns `T`, the common `eltype` of the elements of `A`.
 """
-innereltype(::Type{A}) where {A<:AbsArr} = eltype(eltype(A))
-innereltype(A::AbsArr) = eltype(eltype(A))
-
-
-"""
-    innerndims(A::Type{<:AbstractArray})
-    innerndims(A::AbstractArray)
-
-Returns the common dimensionality of the elements of `A`.
-Throws an error if the elements of `A` do not have equal dimensionality.
-"""
-innerndims(::Type{<:AbsArr{<:AbsArr{<:Any,N}}}) where {N} = N
-innerndims(A::AbsArr{<:AbsArr{<:Any,N}}) where {N} = N
-# Unlike innereltype which defaults to Any if eltype(A) isa UnionAll there is no good default for N
-innerndims(A::AbsArr) = _scan_inner(ndims, A)
+inner_eltype(::Type{<:NestedArray{V}}) where {V} = @isdefined(V) ? V : Any
+inner_eltype(A::NestedArray) = inner_eltype(typeof(A))
 
 
 """
-    inneraxes(A::AbstractArray[, d])
+    inner_ndims(A::Type{<:AbstractArray{<:AbstractArray{V,M},N}})
+    inner_ndims(A::AbstractArray{<:AbstractArray{V,M},N})
+
+Returns `M`, the common dimensionality of the elements of `A`.
+"""
+inner_ndims(::Type{<:NestedArray{V,M}}) where {V,M} = M
+inner_ndims(A::NestedArray) = inner_ndims(typeof(A))
+
+
+"""
+    inner_axes(A::AbstractArray{<:AbstractArray{V,M},N}, [dim])
 
 Returns the common axes of the elements of `A`.
-Throws an error if the elements of `A` do not have equal axes.
+Throws an error if the elements of `A` do not have equal axes or if `A` is empty.
 """
-function inneraxes(A::AbsArr)
-    if isempty(A)
-        # TODO this would be wrong for offset arrays?
-        return ntuple(_ -> Base.OneTo(0), innerndims(A))
-    else
-        return _scan_inner(axes, A)
-    end
+@inline function inner_axes(A::NestedArray{V,M}) where {V,M}
+    # TODO would this be wrong for offset arrays?
+    return isempty(A) ? ntuple(_ -> Base.OneTo(0), M) : _scan_inner(axes, A)
 end
 
-@inline function inneraxes(A::AbsArr, d::Integer)
-    d <= innerndims(A) ? inneraxes(A)[d] : Base.OneTo(1)
+@inline function inner_axes(A::NestedArray{V,M}, d::Integer) where {V,M}
+    d <= M ? inner_axes(A)[d] : Base.OneTo(0)
 end
 
 
 """
-    innersize(A::AbstractArray[, d])
+    inner_size(A::AbstractArray{<:AbstractArray{V,M},N}, [dim])
 
 Returns the common size of the elements of `A`.
-Throws an error if the elements of `A` do not have equal axes.
+Throws an error if the elements of `A` do not have equal axes or if `A` is empty.
 """
-@inline innersize(A::AbsArr) = map(Base.unsafe_length, inneraxes(A))
-@inline innersize(A::AbsArr, d::Integer) = Base.unsafe_length(inneraxes(A, d))
+@inline inner_size(A::NestedArray) = map(Base.unsafe_length, inner_axes(A))
+@inline inner_size(A::NestedArray, d::Integer) = Base.unsafe_length(inner_axes(A, d))
 
 
 """
-    innerlength(A::AbstractArray)
+    inner_length(A::AbstractArray{<:AbstractArray{V,M},N})
 
 Returns the common length of the elements of `A`.
-Throws an error if the elements of `A` do not have equal length.
+Throws an error if the elements of `A` do not have equal length or if `A` is empty.
 """
-@inline innerlength(A::AbsArr) = _scan_inner(length, A)
+@inline inner_length(A::AbstractArray) = _scan_inner(length, A)
 
 
-function _scan_inner(f::F, A::AbsArr) where {F}
+function _scan_inner(f::F, A::AbstractArray) where {F}
     if isempty(A)
-        throw(ArgumentError("Cannot apply $f to an empty array"))
+        argerror("Cannot apply $f to an empty array")
     else
         x = f(first(A))
-        for a in A
-            f(a) == x || error("The element arrays of A do not have matching $f")
+        for I in eachindex(A)[2:end]
+            f(A[I]) == x || argerror("The element arrays of A do not have matching $f")
         end
         return x
     end

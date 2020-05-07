@@ -2,35 +2,29 @@ module SpecialArrays
 
 using Adapt
 
-using Base: @propagate_inbounds, @pure, @_inline_meta, require_one_based_indexing
-using Base.MultiplicativeInverses: SignedMultiplicativeInverse
+using Base: @propagate_inbounds, @pure, @_inline_meta
+using Base: require_one_based_indexing, tail, unsafe_length
 
+using Compat
 using DocStringExtensions
-using MacroTools: @forward
 using Requires: @require
-using Shapes
-using StaticNumbers
 using UnsafeArrays
 
 
-const Idx = Union{Colon,Real,AbstractArray}
+const NestedArray{V,M,N} = AbstractArray{<:AbstractArray{V,M},N}
 
+
+include("tuple.jl")
 include("util.jl")
-include("viewtype.jl")
-include("cartesianindexer.jl")
-include("typedbool.jl")
 
-export innereltype, innerndims, inneraxes, innersize, innerlength
+export inner_eltype, inner_ndims, inner_axes, inner_size, inner_length
 include("functions.jl")
 
-export SlicedArray, slice
+export SlicedArray, slice, align
 include("slicedarray.jl")
 
 export FlattenedArray, flatview, flatten
 include("flattenedarray.jl")
-
-export ElasticArray
-include("elasticarray.jl")
 
 export BatchedVector, batch, batchlike
 include("batchedvector.jl")

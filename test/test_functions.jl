@@ -4,24 +4,20 @@ include("preamble.jl")
 
 function makedata(V::Type, M::Integer, N::Integer)
     dims = testdims(M + N)
-    innersize, outersize = tuple_split(dims, M)
+    inner_size, outersize = tuple_split(dims, Val(M))
 
     nested = Array{Array{V,M},N}(undef, outersize...)
     for I in eachindex(nested)
-        nested[I] = rand!(Array{V,M}(undef, innersize...))
+        nested[I] = rand!(Array{V,M}(undef, inner_size...))
     end
-
-    anynested = []
-    append!(anynested, nested)
 
     return (
         nested = nested,
-        anynested = anynested,
         flat = reshape(reduce(hcat, nested), dims),
         dims = dims,
-        innersize = innersize,
+        inner_size = inner_size,
         outersize = outersize,
-        inneraxes = axes(first(nested)),
+        inner_axes = axes(first(nested)),
         outeraxes = axes(nested),
     )
 end
@@ -30,39 +26,33 @@ end
     @testset "inner_*" begin
         data = makedata(V, M, N)
         A = data.nested
-        B = data.anynested
 
-        @test innereltype(A) === V
-        @test_inferred innereltype(A)
-        @test innereltype(typeof(A)) === V
-        @test_inferred innereltype(typeof(A))
-        @test innereltype(B) === Any
+        @test inner_eltype(A) === V
+        @test_inferred inner_eltype(A)
+        @test inner_eltype(typeof(A)) === V
+        @test_inferred inner_eltype(typeof(A))
 
-        @test innerndims(A) == M
-        @test_inferred innerndims(A)
-        @test innerndims(typeof(A)) == M
-        @test_inferred innerndims(typeof(A))
-        @test innerndims(B) == M
+        @test inner_ndims(A) == M
+        @test_inferred inner_ndims(A)
+        @test inner_ndims(typeof(A)) == M
+        @test_inferred inner_ndims(typeof(A))
 
-        @test inneraxes(A) == data.inneraxes
-        @test_inferred inneraxes(A)
-        @test inneraxes(B) == data.inneraxes
+        @test inner_axes(A) == data.inner_axes
+        @test_inferred inner_axes(A)
 
-        @test innersize(A) == data.innersize
-        @test_inferred innersize(A)
-        @test innersize(B) == data.innersize
+        @test inner_size(A) == data.inner_size
+        @test_inferred inner_size(A)
 
-        @test innerlength(A) == prod(data.innersize)
-        @test_inferred innerlength(A)
-        @test innerlength(B) == prod(data.innersize)
+        @test inner_length(A) == prod(data.inner_size)
+        @test_inferred inner_length(A)
     end
 end
 
 @testset "inner_* errors" begin
     A = [zeros(2), zeros(3)]
-    @test_throws ErrorException inneraxes(A)
-    @test_throws ErrorException innersize(A)
-    @test_throws ErrorException innerlength(A)
+    @test_throws ArgumentError inner_axes(A)
+    @test_throws ArgumentError inner_size(A)
+    @test_throws ArgumentError inner_length(A)
 end
 
 end # module
