@@ -47,7 +47,6 @@ end
 showalongs(alongs) = "($(join(map(a -> a === True() ? ':' : '*', alongs), ", ")))"
 
 @testset "alongs = $(showalongs(alongs)), V = $V" for alongs in TEST_ALONGS, V in (Float64,)
-    continue # TODO
     @testset "constructors" begin
         @unpack alongs_int, alongs_glob, parent, M, N = makedata(V, alongs)
         Expected = SlicedArray{<:AbstractArray{V,M},N,M,Array{V,M+N},typeof(alongs)}
