@@ -3,8 +3,8 @@ module TestBatchedVector
 include("preamble.jl")
 
 function makedata(V::Type, nbatches::Integer)
-    batch_lengths = testdims(nbatches)
-    offsets = [0, cumsum([batch_lengths...])...]
+    batch_lengths = collect(testdims(nbatches))
+    offsets = [0, cumsum(batch_lengths)...]
     nested = Vector{V}[rand(V, bl) for bl in batch_lengths]
     flat = nbatches == 0 ? V[] : reduce(vcat, nested)
     return (batch_lengths = batch_lengths, offsets = offsets, nested=nested, flat=flat)

@@ -11,6 +11,7 @@ end
     ntuple(i -> (@_inline_meta; alongs[i] === Colon() ? True() : False()), Val(L))
 end
 to_alongs(alongs, ::Val) = argerror("Invalid alongs: $alongs")
+to_alongs(alongs::Tuple{}, ::Val) = ()
 
 
 # returns true iff any number of True's followed by any number of False's

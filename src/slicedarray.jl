@@ -50,10 +50,6 @@ end
     view(S.parent, mergeindices(S, I)...)
 end
 
-# Workaround for https://github.com/JuliaArrays/StaticArrays.jl/issues/705
-@propagate_inbounds Base.getindex(S::SlicedArray{<:Any,0,0}) = zeroview(S.parent)
-
-
 @propagate_inbounds function Base.setindex!(S::SlicedArray{<:Any,N}, v, I::Vararg{Int,N}) where {N}
     S.parent[mergeindices(S, I)...] = v
     return S
@@ -72,9 +68,6 @@ end
 
 Base.IndexStyle(::Type{<:SlicedArray}) = IndexCartesian()
 Base.IndexStyle(::Type{<:SlicedArray{<:Any,1}}) = IndexLinear()
-
-# Workaround for https://github.com/JuliaArrays/StaticArrays.jl/issues/705
-@inline Base.SubArray(parent::SlicedArray, I::Tuple{}) = zeroview(parent)
 
 @inline function mergeindices(S::SlicedArray{<:Any,N}, I::Anys{N}) where {N}
     tuple_setindex(sliceaxes(S.parent), I, invert(S.alongs))
