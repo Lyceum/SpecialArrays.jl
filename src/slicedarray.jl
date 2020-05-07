@@ -74,32 +74,6 @@ Base.IndexStyle(::Type{<:SlicedArray{<:Any,1}}) = IndexLinear()
 end
 
 
-function Base.copyto!(
-    dest::ContiguousSlicedArray{<:Any,N,M},
-    doffs::Integer,
-    src::ContiguousSlicedArray{<:Any,N,M},
-    soffs::Integer,
-    n::Integer,
-) where {N,M}
-    insize = inner_size(src)
-    setindex_shape_check(dest, insize)
-    stride = prod(insize)
-    di1 = firstindex(dest.parent)
-    si1 = firstindex(src.parent)
-    doffs_parent = stride * (doffs - di1) + di1
-    soffs_parent = stride * (soffs - si1) + si1
-    copyto!(dest.parent, doffs_parent, src.parent, soffs_parent, stride * n)
-    return dest
-end
-
-function Base.copyto!(
-    dest::ContiguousSlicedArray{<:Any,N,M},
-    src::ContiguousSlicedArray{<:Any,N,M},
-) where {N,M}
-    setindex_shape_check(dest, inner_size(src))
-    copyto!(dest.parent, src.parent)
-    return dest
-end
 
 
 function Base.resize!(S::SlicedArray{<:Any,N}, dims::NTuple{N,Integer}) where {N}
@@ -126,6 +100,34 @@ Base.sizehint!(S::SlicedArray{<:Any,N}, dims::Vararg{Integer,N}) where {N} = siz
 
 const ContiguousSlicedArray{T,N,M,P,A} = SlicedArray{T,N,M,P,A,true}
 const ContiguousSlicedVector{T,M,P,A} = ContiguousSlicedArray{T,1,M,P,A}
+
+
+function Base.copyto!(
+    dest::ContiguousSlicedArray{<:Any,N,M},
+    doffs::Integer,
+    src::ContiguousSlicedArray{<:Any,N,M},
+    soffs::Integer,
+    n::Integer,
+) where {N,M}
+    insize = inner_size(src)
+    setindex_shape_check(dest, insize)
+    stride = prod(insize)
+    di1 = firstindex(dest.parent)
+    si1 = firstindex(src.parent)
+    doffs_parent = stride * (doffs - di1) + di1
+    soffs_parent = stride * (soffs - si1) + si1
+    copyto!(dest.parent, doffs_parent, src.parent, soffs_parent, stride * n)
+    return dest
+end
+
+function Base.copyto!(
+    dest::ContiguousSlicedArray{<:Any,N,M},
+    src::ContiguousSlicedArray{<:Any,N,M},
+) where {N,M}
+    setindex_shape_check(dest, inner_size(src))
+    copyto!(dest.parent, src.parent)
+    return dest
+end
 
 
 function Base.append!(S::ContiguousSlicedVector, iter::ContiguousSlicedVector)
