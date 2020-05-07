@@ -33,6 +33,13 @@ end
 
 Base.IndexStyle(::Type{<:BatchedVector}) = IndexLinear()
 
+@propagate_inbounds function batchrange(A::BatchedVector, i::Int)
+    j = firstindex(A.parent)
+    from = A.offsets[i] + j
+    to = A.offsets[i + 1] - 1 + j
+    return from:to
+end
+
 
 ####
 #### Misc
@@ -59,7 +66,7 @@ Base.parent(A::BatchedVector) = A.parent
 View `A` as a vector of batches where `batch(parent, batch_lengths)[i]` has
 length `batch_lengths[i]`.
 """
-@inline function batch(parent::AbstractVector, batch_lengths)
+@inline function batch(parent::AbstractVector, batch_lengths::AbstractVector{<:Integer})
     offsets = Vector{Int}(undef, length(batch_lengths) + 1)
     offsets[1] = cumsum = 0
     for (i, l) in enumerate(batch_lengths)
@@ -71,6 +78,7 @@ end
 
 """
     $(SIGNATURES)
+
 View `A` as a vector of batches using the same batch lengths as `B`.
 """
 @inline function batchlike(A::AbstractVector, B::BatchedVector)
@@ -91,13 +99,6 @@ end
 ####
 #### Util
 ####
-
-@propagate_inbounds function batchrange(A::BatchedVector, i::Int)
-    j = firstindex(A.parent)
-    from = A.offsets[i] + j
-    to = A.offsets[i + 1] - 1 + j
-    return from:to
-end
 
 check_offsets(A::BatchedVector) = check_offsets(A.parent, A.offsets)
 
