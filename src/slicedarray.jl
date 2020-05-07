@@ -108,13 +108,22 @@ const ContiguousSlicedVector{T,M,P,A} = ContiguousSlicedArray{T,1,M,P,A}
 
 
 function Base.append!(S::ContiguousSlicedVector, iter::ContiguousSlicedVector)
-    setindex_shape_check(S, innersize(iter))
+    setindex_shape_check(S, inner_size(iter))
     append!(S.parent, iter.parent)
     return S
 end
 
+# TODO can probably speed this up by doing resize + setindex like in Base
+function Base.append!(S::ContiguousSlicedVector, iter)
+    for el in iter
+        push!(S, el)
+    end
+    return S
+end
+
+
 function Base.prepend!(S::ContiguousSlicedVector, iter::ContiguousSlicedVector)
-    setindex_shape_check(S, innersize(iter))
+    setindex_shape_check(S, inner_size(iter))
     prepend!(S.parent, iter.parent)
     return S
 end
@@ -122,11 +131,10 @@ end
 # TODO can probably speed this up by doing resize + setindex like in Base
 function Base.prepend!(S::ContiguousSlicedVector, iter)
     for el in iter
-        prepend!(S.parent, el)
+        pushfirst!(S, el)
     end
     return S
 end
-
 
 
 function Base.pop!(S::ContiguousSlicedVector)
@@ -164,7 +172,7 @@ end
 Base.empty!(S::ContiguousSlicedVector) = resize!(S, 0)
 
 @inline function setindex_shape_check(dest::SlicedArray, szsrc::Dims)
-    setindex_shape_check(innersize(dest), szsrc)
+    setindex_shape_check(inner_size(dest), szsrc)
 end
 
 
@@ -186,7 +194,7 @@ function Base.showarg(io::IO, S::SlicedArray, toplevel)
     end
     print(io, ')')
     if toplevel
-        print(io, " with ", Base.dims2string(innersize(S)), " eltype", innereltype(S))
+        print(io, " with ", Base.dims2string(inner_size(S)), " elements of ", inner_eltype(S))
     end
     return nothing
 end
@@ -221,9 +229,9 @@ end
 ##### Extra
 #####
 
-@inline inneraxes(S::SlicedArray) = tuple_getindex(axes(S.parent), S.alongs)
+@inline inner_axes(S::SlicedArray) = tuple_getindex(axes(S.parent), S.alongs)
 
-@inline innersize(S::SlicedArray) = tuple_getindex(size(S.parent), S.alongs)
+@inline inner_size(S::SlicedArray) = tuple_getindex(size(S.parent), S.alongs)
 
 
 """
@@ -232,7 +240,35 @@ end
 
 Return an array whose elements are views into `A` along the dimensions `alongs`.
 `alongs` can be specified in the following ways:
-**TODO**
+- `:` or `*` representing sliced or indexed dimensions, respectively.
+- Integers corresponding to the sliced dimensions.
+
+See also: [`align`](@ref), [`flatview`](@ref).
+
+# Examples
+
+```jldoctest
+julia> A = reshape(collect(1:8), (2,2,2))
+2×2×2 Array{Int64,3}:
+[:, :, 1] =
+ 1  3
+ 2  4
+
+[:, :, 2] =
+ 5  7
+ 6  8
+
+julia> S = slice(A, :, *, :)
+2-element slice(::Array{Int64,3}, :, *, :) with 2×2 elements of Int64:
+ [1 5; 2 6]
+ [3 7; 4 8]
+
+julia> S[1] == view(A, :, 1, :)
+true
+
+julia> slice(A, :, *, :) == slice(A, 1, 3)
+true
+```
 """
 @inline function slice(A::AbstractArray{<:Any,L}, alongs...) where {L}
     SlicedArray(A, to_alongs(alongs, Val(L)))
@@ -244,7 +280,7 @@ end
 """
     slice(A, ::Val{M})
 
-Equivalent to slice(A, 1:M...)
+Equivalent to slice(A, 1:M...).
 """
 @inline function slice(A::AbstractArray{<:Any,L}, ::Val{M}) where {L,M}
     alongs = (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(L-M))...)
@@ -254,11 +290,56 @@ end
 flatview(S::SlicedArray) = FlattenedArray(S)
 flatview(S::ContiguousSlicedArray) = S.parent
 
-# align(slice(A, al), al) can just return the parent
-align(S::SlicedArray{<:Any,<:Any,<:Any,<:Any,A}, alongs::A) where {A<:TupleN{TypedBool}} = S.parent
 
+"""
+    align(A::AbstractArray{<:AbstractArray{V,M},N}, alongs...)
+    align(A::AbstractArray{<:AbstractArray{V,M},N}, alongs)
+
+The inverse of `slice`. Returns an `M+N`-dimension array where `alongs` specifies the dimensions
+taken up by the inner arrays. If `A` is not a subtype of `AbstractArray{<:AbstractArray{V,M},N}`,
+the return value is `A` itself.
+
+See also: [`flatview`](@ref), [`slice`](@ref).
+
+# Examples
+
+```jldoctest
+julia> A = [[1 2; 3 4], [5 6; 7 8]]
+2-element Array{Array{Int64,2},1}:
+ [1 2; 3 4]
+ [5 6; 7 8]
+
+julia> align(A, :, :, *)
+2×2×2 PermutedDimsArray(flatview(::Array{Array{Int64,2},1}), (1, 2, 3)) with eltype Int64:
+[:, :, 1] =
+ 1  2
+ 3  4
+
+[:, :, 2] =
+ 5  6
+ 7  8
+
+julia> align(A, :, *, :)
+2×2×2 PermutedDimsArray(flatview(::Array{Array{Int64,2},1}), (1, 3, 2)) with eltype Int64:
+[:, :, 1] =
+ 1  5
+ 3  7
+
+[:, :, 2] =
+ 2  6
+ 4  8
+
+julia> align(A, *, :, :) == align(A, 2, 3)
+true
+
+julia> align(slice(A, 2, 3), 2, 3) == A
+true
+```
+"""
+align(A::NestedArray{<:Any,M,N}, alongs...) where {M,N} = align(A, to_alongs(alongs, Val(M+N)))
+align(A::NestedArray{<:Any,M,N}, alongs::Tuple) where {M,N} = align(A, to_alongs(alongs, Val(M+N)))
 function align(A::NestedArray, alongs::NTuple{L,TypedBool}) where {L}
-    if innerndims(A) != length(tuple_getindex(alongs, alongs))
+    if inner_ndims(A) != length(tuple_getindex(alongs, alongs))
         argerror("Must specify exactly M dimensions to be taken up by the inner arrays")
     end
     dims = ntuple(identity, Val(L))
@@ -266,8 +347,9 @@ function align(A::NestedArray, alongs::NTuple{L,TypedBool}) where {L}
     return PermutedDimsArray(flatview(A), permuted_dims)
 end
 
-align(A::NestedArray{<:Any,M,N}, alongs...) where {M,N} = align(A, to_alongs(alongs, Val(M+N)))
-align(A::NestedArray{<:Any,M,N}, alongs::Tuple) where {M,N} = align(A, to_alongs(alongs, Val(M+N)))
+# align(slice(A, al), al) can just return the parent
+align(S::SlicedArray{<:Any,<:Any,<:Any,<:Any,A}, alongs::A) where {A<:TupleN{TypedBool}} = S.parent
+align(A::AbstractArray, alongs...) = A
 
 
 #####

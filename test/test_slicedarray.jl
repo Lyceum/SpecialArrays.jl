@@ -108,7 +108,7 @@ showalongs(alongs) = "($(join(map(a -> a === True() ? ':' : '*', alongs), ", "))
         if SpecialArrays.iscontiguous(alongs)
             @test flatview(S) === S.parent === parent
         else
-            flat = reshape(reduce(hcat, nested), (innersize(nested)..., size(nested)...))
+            flat = reshape(reduce(hcat, nested), (inner_size(nested)..., size(nested)...))
             @test flatview(S) == flat
         end
     end
@@ -117,13 +117,13 @@ showalongs(alongs) = "($(join(map(a -> a === True() ? ':' : '*', alongs), ", "))
         data = makedata(V, alongs)
         S = SlicedArray(data.parent, alongs)
 
-        @test innersize(S) == size(first(S))
-        @test_inferred innersize(S)
-        @test_noalloc innersize($S)
+        @test inner_size(S) == size(first(S))
+        @test_inferred inner_size(S)
+        @test_noalloc inner_size($S)
 
-        @test inneraxes(S) == axes(first(S))
-        @test_inferred inneraxes(S)
-        @test_noalloc inneraxes($S)
+        @test inner_axes(S) == axes(first(S))
+        @test_inferred inner_axes(S)
+        @test_noalloc inner_axes($S)
     end
 end
 

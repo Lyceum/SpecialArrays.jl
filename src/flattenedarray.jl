@@ -1,23 +1,23 @@
 struct FlattenedArray{V,L,M,N,P<:NestedArray{V,M,N},InAx<:Anys{M}} <: AbstractArray{V,L}
     parent::P
-    inneraxes::InAx
-    @inline function FlattenedArray{V,L,M,N,P,InAx}(parent, inneraxes) where {V,L,M,N,P<:NestedArray{V,M,N},InAx<:Anys{M}}
-        new{V,L,M,N,P,InAx}(parent, inneraxes)
+    inner_axes::InAx
+    @inline function FlattenedArray{V,L,M,N,P,InAx}(parent, inner_axes) where {V,L,M,N,P<:NestedArray{V,M,N},InAx<:Anys{M}}
+        new{V,L,M,N,P,InAx}(parent, inner_axes)
     end
 end
 
-@inline function FlattenedArray(parent::NestedArray{V,M,N}, inneraxes::Anys{M}) where {V,M,N}
-    FlattenedArray{V,M+N,M,N,typeof(parent),typeof(inneraxes)}(parent, inneraxes)
+@inline function FlattenedArray(parent::NestedArray{V,M,N}, inner_axes::Anys{M}) where {V,M,N}
+    FlattenedArray{V,M+N,M,N,typeof(parent),typeof(inner_axes)}(parent, inner_axes)
 end
 
-FlattenedArray(parent::NestedArray) = FlattenedArray(parent, inneraxes(parent))
+FlattenedArray(parent::NestedArray) = FlattenedArray(parent, inner_axes(parent))
 
 
 ####
 #### Core Array Interface
 ####
 
-@inline Base.axes(F::FlattenedArray) = (F.inneraxes..., axes(F.parent)...)
+@inline Base.axes(F::FlattenedArray) = (F.inner_axes..., axes(F.parent)...)
 
 @inline Base.size(F::FlattenedArray) = map(Base.unsafe_length, axes(F))
 
@@ -43,7 +43,7 @@ end
 #### Misc
 ####
 
-Base.copy(F::FlattenedArray) = FlattenedArray(deepcopy(F.parent), F.inneraxes)
+Base.copy(F::FlattenedArray) = FlattenedArray(deepcopy(F.parent), F.inner_axes)
 
 Base.parent(F::FlattenedArray) = F.parent
 
@@ -91,26 +91,29 @@ end
 Return a `M+N`-dimensional flattened view of `A`. If `A` is not a subtype of
 `AbstractArray{<:AbstractArray{V,M},N}`, the return value is `A` itself.
 Throws an error if the elements of `A` do not have equal size.
+Equivalent to `align(A, 1:M...)`.
+
+See also: [`align`](@ref).
 
 # Examples
 
 ```jldoctest
-julia> A = [reshape(Vector(1:6), (2, 3)), reshape(Vector(7:12), (2, 3))]
+julia> A = [[1 2; 3 4], [5 6; 7 8]]
 2-element Array{Array{Int64,2},1}:
- [1 3 5; 2 4 6]
- [7 9 11; 8 10 12]
+ [1 2; 3 4]
+ [5 6; 7 8]
 
-julia> B = flatview(A)
-2×3×2 flatview(::Array{Array{Int64,2},1}) with eltype Int64:
+julia> flatview(A)
+2×2×2 flatview(::Array{Array{Int64,2},1}) with eltype Int64:
 [:, :, 1] =
- 1  3  5
- 2  4  6
+ 1  2
+ 3  4
 
 [:, :, 2] =
- 7   9  11
- 8  10  12
+ 5  6
+ 7  8
 
-julia> B == reshape(hcat(B...), (2, 3, 2))
+julia> flatview(A) == reshape(reduce(hcat, A), 2, 2, 2)
 true
 ```
 """

@@ -1,5 +1,5 @@
 using Adapt: Adapt, adapt
-using Base: index_shape, index_dimsum, index_ndims, to_indices
+using Base: index_shape, index_dimsum, index_ndims, to_indices, front, tail
 using Base: mightalias, unalias, dataids, unsafe_convert
 using BenchmarkTools
 using ElasticArrays

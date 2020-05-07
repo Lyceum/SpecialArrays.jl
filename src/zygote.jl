@@ -1,4 +1,4 @@
-Zygote.@nograd innereltype, innerndims, inneraxes, innersize, innerlength
+Zygote.@nograd inner_eltype, inner_ndims, inner_axes, inner_size, inner_length
 
 Zygote.@adjoint function slice(A::AbstractArray, alongs...)
     slice(A, alongs...), Δ -> (align(Δ, alongs...), map(_ -> nothing, alongs)...)

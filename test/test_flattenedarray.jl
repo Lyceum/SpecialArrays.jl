@@ -5,20 +5,20 @@ include("preamble.jl")
 
 function makedata(V::Type, M::Integer, N::Integer)
     dims = testdims(M + N)
-    innersize, outersize = tuple_split(dims, Val(M))
+    inner_size, outersize = tuple_split(dims, Val(M))
 
     nested = Array{Array{V,M},N}(undef, outersize...)
     for I in eachindex(nested)
-        nested[I] = rand!(Array{V,M}(undef, innersize...))
+        nested[I] = rand!(Array{V,M}(undef, inner_size...))
     end
 
     return (
         nested = nested,
         flat = reshape(reduce(hcat, nested), dims),
         dims = dims,
-        innersize = innersize,
+        inner_size = inner_size,
         outersize = outersize,
-        inneraxes = axes(first(nested)),
+        inner_axes = axes(first(nested)),
         outeraxes = axes(nested),
     )
 end
@@ -26,7 +26,7 @@ end
 @testset "M = $M, N = $N, V = $V" for M in (0, 2), N = 1:2, V in (Float64,)
     @testset "constructors" begin
         data = makedata(V, M, N)
-        Expected = FlattenedArray{V,M+N,M,N,typeof(data.nested),typeof(data.inneraxes)}
+        Expected = FlattenedArray{V,M+N,M,N,typeof(data.nested),typeof(data.inner_axes)}
         @test flatview(data.nested) isa Expected
         @test_inferred flatview(data.nested)
 
@@ -38,7 +38,7 @@ end
         data = makedata(V, M, N)
         F = flatview(data.nested)
         F[:] .= 1:length(F)
-        len = prod(data.innersize)
+        len = prod(data.inner_size)
         for i = 1:length(data.nested)
             a = data.nested[i]
             offs = (i - 1) * len + 1

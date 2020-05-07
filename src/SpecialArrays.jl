@@ -5,22 +5,19 @@ using Adapt
 using Base: @propagate_inbounds, @pure, @_inline_meta
 using Base: require_one_based_indexing, tail, unsafe_length
 
+using Compat
 using DocStringExtensions
 using Requires: @require
 using UnsafeArrays
 
+
 const NestedArray{V,M,N} = AbstractArray{<:AbstractArray{V,M},N}
-const AbstractArrayOfArrays{N} = AbstractArray{<:AbstractArray}
 
-
-const Idx = Union{Colon,Real,AbstractArray} # TODO
 
 include("tuple.jl")
 include("util.jl")
-include("compat.jl")
-include("viewtype.jl")
 
-export innereltype, innerndims, inneraxes, innersize, innerlength
+export inner_eltype, inner_ndims, inner_axes, inner_size, inner_length
 include("functions.jl")
 
 export SlicedArray, slice, align

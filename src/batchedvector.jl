@@ -8,7 +8,7 @@ struct BatchedVector{T,P<:AbstractVector} <: AbstractVector{T} # TODO T<:Abstrac
 end
 
 @inline function BatchedVector(parent::AbstractVector, offsets::AbstractVector{<:Integer})
-    T = viewtype(parent, firstindex(parent):firstindex(parent))
+    T = @inbounds typeof(view(parent, firstindex(parent):firstindex(parent)))
     BatchedVector{T,typeof(parent)}(parent, offsets)
 end
 
