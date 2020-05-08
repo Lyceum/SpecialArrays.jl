@@ -9,7 +9,7 @@ const TEST_ALONGS = [
     (False(), True()),
 ]
 
-function makedata(alongs::TypedBools{L}) where {L}
+function makedata(alongs::NTuple{L,TypedBool}) where {L}
     psize = testdims(L)
     insize = tuple_getindex(psize, alongs)
     outsize = tuple_getindex(psize, invert(alongs))

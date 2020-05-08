@@ -149,11 +149,3 @@ true
 """
 deep_flatview(A::NestedArray) = deep_flatview(flatview(A))
 deep_flatview(A::AbstractArray) = A
-
-"""
-    $(TYPEDSIGNATURES)
-
-Like [`flatview`](@ref) but returns a new array.
-"""
-flatten(A::NestedArray) = copy(flatview(A))
-flatten(A::AbstractArray) = A

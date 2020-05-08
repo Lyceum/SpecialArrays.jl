@@ -46,16 +46,6 @@ end
         end
     end
 
-    @testset "flatten" begin
-        data = makedata(V, M, N)
-        @test flatten(data.flat) === data.flat
-        @test flatten(data.nested) == data.flat
-        nested = copy(data.nested)
-        flat = flatten(nested)
-        rand!(flat)
-        @test nested == data.nested
-    end
-
     let V = V, M = M, N = N
         test_array_AB() do
             data = makedata(V, M, N)
