@@ -86,6 +86,12 @@ View `A` as a vector of batches using the same batch lengths as `B`.
     BatchedVector(A, copy(B.offsets))
 end
 
+"""
+    $(TYPEDSIGNATURES)
+
+Returns the unbatched parent array wrapped by `B`.
+"""
+SpecialArrays.flatview(B::BatchedVector) = B.parent
 
 ####
 #### 3rd Party

@@ -163,7 +163,8 @@ end
 function Base.pop!(S::ContiguousSlicedVector)
     isempty(S) && argerror("array must be non-empty")
     # 1) We need to copy the last element as the view could be invalidated by resizing S.parent
-    # 2) copy(SubArray{T,0,...}) returns type T, so we wrap it with a 0-dimensional array
+    # 2) Base.copy(::SubArray{T,0}) unpacks the 0-dimensional view and returns type T,
+    #    so we wrap it with a 0-dimensional array
     item = _maybe_wrap(eltype(S.parent), copy(last(S)))
     resize!(S, length(S) - 1)
     return item
@@ -301,12 +302,24 @@ end
 end
 
 """
-    slice(A, ::Val{M})
+    slice_inner(A::AbstractArray{T,L}, ::Val{M})
 
+Slice along the first `M` dimensions of A, returning an `L-M` dimensional array.
 Equivalent to slice(A, 1:M...).
 """
-@inline function slice(A::AbstractArray{<:Any,L}, ::Val{M}) where {L,M}
+@inline function slice_inner(A::AbstractArray{<:Any,L}, ::Val{M}) where {L,M}
     alongs = (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(L-M))...)
+    slice(A, alongs)
+end
+
+"""
+    slice_outer(A::AbstractArray{T,L}, ::Val{N})
+
+Slice along the last `N` dimensions of A, returning an `L-N` dimensional array.
+Equivalent to slice(A, M+1:L...).
+"""
+@inline function slice_outer(A::AbstractArray{<:Any,L}, ::Val{N}) where {L,N}
+    alongs = (ntuple(_ -> False(), Val(L-N))..., ntuple(_ -> True(), Val(N))...)
     slice(A, alongs)
 end
 

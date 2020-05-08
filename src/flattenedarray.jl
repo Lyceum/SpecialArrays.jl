@@ -120,6 +120,35 @@ true
 flatview(A::NestedArray) = FlattenedArray(A)
 flatview(A::AbstractArray) = A
 
+"""
+    $(SIGNATURES)
+
+A recursive version of [`flatview`](@ref).
+
+# Examples
+
+```jldoctest
+julia> x = [ [[1,2], [3,4]], [[5,6], [7,8]]]
+2-element Array{Array{Array{Int64,1},1},1}:
+ [[1, 2], [3, 4]]
+ [[5, 6], [7, 8]]
+
+julia> deep_flatview(x)
+2×2×2 flatview(flatview(::Array{Array{Array{Int64,1},1},1})) with eltype Int64:
+[:, :, 1] =
+ 1  3
+ 2  4
+
+[:, :, 2] =
+ 5  7
+ 6  8
+
+julia> deep_flatview(x) == flatview(flatview(x))
+true
+```
+"""
+deep_flatview(A::NestedArray) = deep_flatview(flatview(A))
+deep_flatview(A::AbstractArray) = A
 
 """
     $(TYPEDSIGNATURES)

@@ -89,11 +89,9 @@ version = "0.24.11"
 
 [[ElasticArrays]]
 deps = ["Adapt"]
-git-tree-sha1 = "77775d23ca7ba4083f36740fef5944a93a039a53"
-repo-rev = "master"
-repo-url = "https://github.com/JuliaArrays/ElasticArrays.jl.git"
+git-tree-sha1 = "ee198e0133aa36cb560ecba4fdfc44f7f2878703"
 uuid = "fdbdab4c-e67f-52f5-8c3f-e7b388dad3d4"
-version = "1.1.0"
+version = "1.2.0"
 
 [[FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays"]
@@ -231,7 +229,7 @@ uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 deps = ["Adapt", "Compat", "DocStringExtensions", "Requires", "UnsafeArrays", "Zygote"]
 path = ".."
 uuid = "dced3ab1-7816-4ad4-9c7c-956aa26e9cbf"
-version = "0.1.1"
+version = "0.2.1"
 
 [[SpecialFunctions]]
 deps = ["OpenSpecFun_jll"]
