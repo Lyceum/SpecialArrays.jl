@@ -21,7 +21,7 @@ end
     # TODO: How safe is this? Possible alternatives:
     #   1. Throw an error if parent is empty
     #   2. Try Core.Compile.return_type, else (1)
-    T = typeof(@inbounds view(parent, I...))
+    T = viewtype(parent, I)
     SlicedArray{T,N,M,P,A,iscontiguous(alongs)}(parent, alongs)
 end
 

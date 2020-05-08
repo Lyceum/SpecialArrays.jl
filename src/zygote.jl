@@ -10,8 +10,9 @@ end
 
 # flatview(A::NestedArray{V,M,N}) is equivalent to:
 # align(A, [True() for _=1:M]..., [False() for _=1:N]...)
-Zygote.@adjoint function flatview(A::NestedArray{V,M}) where {V,M}
-    flatview(A), Δ -> (slice(Δ, Val(M)), )
+Zygote.@adjoint function flatview(A::NestedArray{V,M,N}) where {V,M,N}
+    alongs = (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(N))...)
+    flatview(A), Δ -> (slice(Δ, alongs), )
 end
 
 Zygote.@adjoint flatview(A::AbstractArray) = A, identity

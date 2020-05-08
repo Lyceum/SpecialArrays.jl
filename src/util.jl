@@ -46,3 +46,29 @@ function throw_setindex_mismatch(szdest::Dims, szsrc::Dims)
         throw(DimensionMismatch("tried to assign $(Base.dims2string(szsrc)) array to $(Base.dims2string(szdest)) destination"))
     end
 end
+
+@inline function viewtype(A::AA, I::II) where {AA<:AbstractArray, II<:Tuple}
+    T = Core.Compiler.return_type(view, Tuple{AA,II.parameters...})
+    isconcretetype(T) ? T : _viewtype(A, I)
+end
+
+@noinline function _viewtype(A::AA, I::II) where {AA<:AbstractArray, II<:Tuple}
+    try
+        return @inbounds typeof(view(A, I...))
+    catch e
+        msg = """
+        Unable to infer the return type of $(_call2str(view, AA, II.parameters...))
+        and typeof($(_call2str(view, typeof(A), I...))) threw the below error.
+        Try passing in valid indices or implement:
+            $(_call2str(viewtype, typeof(A), typeof(I)))
+
+        """
+        printstyled(stderr, msg, color = :light_red)
+        rethrow(e)
+    end
+end
+
+function _call2str(f, args...)
+    argstrings = map(a -> a isa Type ? "::$a" : string(a), args)
+    return length(args) > 0 ? "$f($(join(argstrings, ", ")))" : string(f)
+end
