@@ -14,23 +14,21 @@ end
     ntuple(dim -> (@_inline_meta; dim in dims ? True() : False()), Val(L))
 end
 
-function to_alongs(::Val{L}, ::Val{M}) where {M,L}
-    (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(L-M))...)
-end
-
 to_alongs(::Val{L}, alongs::Tuple{}) where {L} = ntuple(_ -> False(), Val(L))
 
 to_alongs(::Val{L}, alongs::Tuple) where {L} = throw_invalid_alongs(L, alongs)
 
+function to_alongs(::Val{L}, ::Val{M}) where {M,L}
+    (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(L-M))...)
+end
+
 @inline to_alongs(::Val{L}, alongs...) where {L} = to_alongs(Val(L), alongs)
 
 
+@noinline throw_invalid_alongs(l::Integer, alongs) = argerror("Expected $l alongs. Got: $alongs.")
 @noinline function throw_invalid_alongs(m::Integer, n::Integer, alongs)
     argerror("Expected $(m+n) alongs with $m sliced dimensions. Got: $alongs.")
 end
-
-@noinline throw_invalid_alongs(l::Integer, alongs) = argerror("Expected $l alongs. Got: $alongs.")
-
 
 # returns true iff any number of True's followed by any number of False's
 iscontiguous(alongs::Tuple{}) = true
@@ -70,8 +68,10 @@ end
 
 @inline function viewtype(A::AA, I::II) where {AA<:AbstractArray, II<:Tuple}
     T = Core.Compiler.return_type(view, Tuple{AA,II.parameters...})
-    isconcretetype(T) ? T : _viewtype(A, I)
+    return isconcretetype(T) ? T : _viewtype(A, I)
 end
+
+@inline viewtype(A::AbstractArray, I...) = viewtype(A, I)
 
 @noinline function _viewtype(A::AA, I::II) where {AA<:AbstractArray, II<:Tuple}
     try

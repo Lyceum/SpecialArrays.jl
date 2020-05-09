@@ -27,16 +27,16 @@ end
     @testset "constructors" begin
         data = makedata(V, M, N)
         Expected = FlattenedArray{V,M+N,M,N,typeof(data.nested),typeof(data.inner_axes)}
-        @test flatview(data.nested) isa Expected
-        @test_inferred flatview(data.nested)
+        @test flatten(data.nested) isa Expected
+        @test_inferred flatten(data.nested)
 
-        @test flatview(data.flat) === data.flat
-        @test flatview(data.nested) == data.flat
+        @test flatten(data.flat) === data.flat
+        @test flatten(data.nested) == data.flat
     end
 
     @testset "basic" begin
         data = makedata(V, M, N)
-        F = flatview(data.nested)
+        F = flatten(data.nested)
         F[:] .= 1:length(F)
         len = prod(data.inner_size)
         for i = 1:length(data.nested)
@@ -60,7 +60,7 @@ end
     x1 = rand(2, 3)
     x2 = rand(2, 3)
     x3 = rand(2, 3)
-    F = flatview([x1, x2])
+    F = flatten([x1, x2])
 
     @test dataids(F) === (dataids(F.parent)..., Iterators.flatten(dataids.(F.parent))...)
 
@@ -70,8 +70,8 @@ end
     @test mightalias(x1, F)
     @test !mightalias(rand(2, 3), F)
 
-    @test mightalias(F, flatview([x1, x3]))
-    @test !mightalias(F, flatview([x3, x3]))
+    @test mightalias(F, flatten([x1, x3]))
+    @test !mightalias(F, flatten([x3, x3]))
 
     let F2 = unalias(x1, F)
         @test !mightalias(x1, F2)

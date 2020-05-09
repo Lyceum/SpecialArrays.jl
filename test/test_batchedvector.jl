@@ -25,7 +25,7 @@ end
         @test batch(flat, batch_lengths) isa Expected
         @test_inferred batch(flat, batch_lengths)
         let B1 = batch(flat, batch_lengths)
-            B2 = batchlike(copy(flat), B1)
+            B2 = similarbatch(copy(flat), B1)
             @test B1 == B2
             @test B1.parent !== B2.parent
         end

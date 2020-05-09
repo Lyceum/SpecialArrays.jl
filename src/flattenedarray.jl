@@ -2,6 +2,7 @@ struct FlattenedArray{V,L,M,N,P<:NestedArray{V,M,N},InAx<:Anys{M}} <: AbstractAr
     parent::P
     inner_axes::InAx
     @inline function FlattenedArray{V,L,M,N,P,InAx}(parent, inner_axes) where {V,L,M,N,P<:NestedArray{V,M,N},InAx<:Anys{M}}
+        # TODO check type parameters
         new{V,L,M,N,P,InAx}(parent, inner_axes)
     end
 end
@@ -22,10 +23,9 @@ FlattenedArray(parent::NestedArray) = FlattenedArray(parent, inner_axes(parent))
 @inline Base.size(F::FlattenedArray) = map(Base.unsafe_length, axes(F))
 
 
-# standard Cartesian indexing
 @propagate_inbounds function Base.getindex(F::FlattenedArray{<:Any,L,M}, I::Vararg{Int,L}) where {L,M}
     Iin, Iout = tuple_split(I, Val(M))
-    F.parent[Iout...][Iin...]
+    return F.parent[Iout...][Iin...]
 end
 
 @propagate_inbounds function Base.setindex!(
@@ -48,7 +48,7 @@ Base.copy(F::FlattenedArray) = FlattenedArray(deepcopy(F.parent), F.inner_axes)
 Base.parent(F::FlattenedArray) = F.parent
 
 function Base.showarg(io::IO, A::FlattenedArray, toplevel)
-    print(io, "flatview(")
+    print(io, "flatten(")
     Base.showarg(io, parent(A), false)
     print(io, ')')
     toplevel && print(io, " with eltype ", eltype(A))
@@ -73,11 +73,11 @@ end
 Base.dataids(F::FlattenedArray) = Tuple(_dataids(F))
 
 function _dataids(F::FlattenedArray)
-    ids = [Base.dataids(F.parent)...]
-    for A in F.parent, id in Base.dataids(A)
-        push!(ids, id)
+    ids = collect(Base.dataids(F.parent))
+    for A in F.parent
+        append!(ids, Base.dataids(A))
     end
-    ids
+    return ids
 end
 
 
@@ -86,7 +86,7 @@ end
 ####
 
 """
-    flatview(A::AbstractArray{<:AbstractArray{V,M},N})
+    flatten(A::AbstractArray{<:AbstractArray{V,M},N})
 
 Return a `M+N`-dimensional flattened view of `A`. If `A` is not a subtype of
 `AbstractArray{<:AbstractArray{V,M},N}`, the return value is `A` itself.
@@ -103,8 +103,8 @@ julia> A = [[1 2; 3 4], [5 6; 7 8]]
  [1 2; 3 4]
  [5 6; 7 8]
 
-julia> flatview(A)
-2×2×2 flatview(::Array{Array{Int64,2},1}) with eltype Int64:
+julia> flatten(A)
+2×2×2 flatten(::Array{Array{Int64,2},1}) with eltype Int64:
 [:, :, 1] =
  1  2
  3  4
@@ -113,17 +113,17 @@ julia> flatview(A)
  5  6
  7  8
 
-julia> flatview(A) == reshape(reduce(hcat, A), 2, 2, 2)
+julia> flatten(A) == reshape(reduce(hcat, A), 2, 2, 2)
 true
 ```
 """
-flatview(A::NestedArray) = FlattenedArray(A)
-flatview(A::AbstractArray) = A
+flatten(A::NestedArray) = FlattenedArray(A)
+flatten(A::AbstractArray) = A
 
 """
     $(SIGNATURES)
 
-A recursive version of [`flatview`](@ref).
+A recursive version of [`flatten`](@ref).
 
 # Examples
 
@@ -133,8 +133,8 @@ julia> x = [ [[1,2], [3,4]], [[5,6], [7,8]]]
  [[1, 2], [3, 4]]
  [[5, 6], [7, 8]]
 
-julia> deep_flatview(x)
-2×2×2 flatview(flatview(::Array{Array{Array{Int64,1},1},1})) with eltype Int64:
+julia> deep_flatten(x)
+2×2×2 flatten(flatten(::Array{Array{Array{Int64,1},1},1})) with eltype Int64:
 [:, :, 1] =
  1  3
  2  4
@@ -143,9 +143,9 @@ julia> deep_flatview(x)
  5  7
  6  8
 
-julia> deep_flatview(x) == flatview(flatview(x))
+julia> deep_flatten(x) == flatten(flatten(x))
 true
 ```
 """
-deep_flatview(A::NestedArray) = deep_flatview(flatview(A))
-deep_flatview(A::AbstractArray) = A
+deep_flatten(A::NestedArray) = deep_flatten(flatten(A))
+deep_flatten(A::AbstractArray) = A

@@ -23,10 +23,10 @@ include("functions.jl")
 export SlicedArray, slice, align
 include("slicedarray.jl")
 
-export FlattenedArray, flatview, flatten
+export FlattenedArray, flatten
 include("flattenedarray.jl")
 
-export BatchedVector, batch, batchlike
+export BatchedVector, batch, similarbatch
 include("batchedvector.jl")
 
 function __init__()
