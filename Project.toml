@@ -1,7 +1,7 @@
 name = "SpecialArrays"
 uuid = "dced3ab1-7816-4ad4-9c7c-956aa26e9cbf"
 authors = ["Colin Summers", "The Contributors of SpecialArrays"]
-version = "0.3.0"
+version = "0.3.0-DEV"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
