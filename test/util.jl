@@ -1,4 +1,4 @@
-testdims(L::Integer) = ntuple(i -> 3 + i, Val(unstatic(L)))
+testdims(L::Integer) = ntuple(i -> 3 + i, Val(L))
 
 randlike(x::Number) = rand(typeof(x))
 randlike(A::AbstractArray{<:Number}) = rand(eltype(A), size(A)...)

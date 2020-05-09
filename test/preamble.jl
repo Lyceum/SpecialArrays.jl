@@ -4,9 +4,8 @@ using Base: mightalias, unalias, dataids, unsafe_convert
 using BenchmarkTools
 using ElasticArrays
 using MacroTools
-using Parameters
+using UnPack
 using Random
-using StaticNumbers
 using Test
 using UnsafeArrays
 
