@@ -218,7 +218,7 @@ uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 deps = ["Adapt", "Compat", "DocStringExtensions", "Requires", "UnsafeArrays", "Zygote"]
 path = ".."
 uuid = "dced3ab1-7816-4ad4-9c7c-956aa26e9cbf"
-version = "0.2.1"
+version = "0.3.0"
 
 [[SpecialFunctions]]
 deps = ["OpenSpecFun_jll"]
