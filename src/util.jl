@@ -1,18 +1,34 @@
-const Glob = Union{Colon, typeof(*)}
+to_alongs(::Val{L}, alongs::NTuple{L,TypedBool}) where {L} = alongs
 
-@inline to_alongs(alongs::TypedBools{L}, ::Val{L}) where {L} = alongs
-@inline function to_alongs(::Val{M}, ::Val{L}) where {M,L}
-    (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(L-M))...)
+const TypedBoolLike = Union{Colon, typeof(*), True, False}
+to_alongs(::Val{L}, alongs::NTuple{L,TypedBoolLike}) where {L} = _to_alongs(alongs)
+@inline function _to_alongs(alongs::TupleN{TypedBoolLike})
+    (_to_along(first(alongs)), _to_alongs(tail(alongs))...)
 end
-@inline function to_alongs(dims::Dims, ::Val{L}) where {L}
+@inline _to_alongs(alongs::Tuple{}) = ()
+@inline _to_along(::Colon) = True()
+@inline _to_along(::typeof(*)) = False()
+@inline _to_along(b::TypedBool) = b
+
+@pure function to_alongs(::Val{L}, dims::TupleN{Integer}) where {L}
     ntuple(dim -> (@_inline_meta; dim in dims ? True() : False()), Val(L))
 end
-@inline function to_alongs(alongs::NTuple{L,Glob}, ::Val{L}) where {L}
-    ntuple(i -> (@_inline_meta; alongs[i] === Colon() ? True() : False()), Val(L))
-end
-to_alongs(alongs::Tuple{}, ::Val{L}) where {L} = ntuple(_ -> False(), Val(L))
-to_alongs(alongs, ::Val) = argerror("Invalid alongs: $alongs")
 
+to_alongs(::Val{L}, alongs::Tuple{}) where {L} = ntuple(_ -> False(), Val(L))
+
+to_alongs(::Val{L}, alongs::Tuple) where {L} = throw_invalid_alongs(L, alongs)
+
+function to_alongs(::Val{L}, ::Val{M}) where {M,L}
+    (ntuple(_ -> True(), Val(M))..., ntuple(_ -> False(), Val(L-M))...)
+end
+
+@inline to_alongs(::Val{L}, alongs...) where {L} = to_alongs(Val(L), alongs)
+
+
+@noinline throw_invalid_alongs(l::Integer, alongs) = argerror("Expected $l alongs. Got: $alongs.")
+@noinline function throw_invalid_alongs(m::Integer, n::Integer, alongs)
+    argerror("Expected $(m+n) alongs with $m sliced dimensions. Got: $alongs.")
+end
 
 # returns true iff any number of True's followed by any number of False's
 iscontiguous(alongs::Tuple{}) = true
@@ -32,25 +48,30 @@ iscontiguous(alongs::Tuple{False, Vararg{TypedBool}}) = false
 #### Misc
 ####
 
-argerror(msg::AbstractString) = throw(ArgumentError(msg))
-dimerror(msg::AbstractString) = throw(DimensionMismatch(msg))
+@noinline argerror(msg::AbstractString) = throw(ArgumentError(msg))
+@noinline dimerror(msg::AbstractString) = throw(DimensionMismatch(msg))
+
 
 # modified from Base (https://github.com/JuliaLang/julia/blob/04cf2d5f26b7b1ce58ece7c076ff97561db01722/base/indices.jl#L189)
-@inline function setindex_shape_check(szdest::Dims, szsrc::Dims)
+@inline function setindex_shape_check(szdest, szsrc)
     szdest === szsrc || throw_setindex_mismatch(szdest, szsrc)
 end
-function throw_setindex_mismatch(szdest::Dims, szsrc::Dims)
+
+@noinline function throw_setindex_mismatch(szdest, szsrc)
     if length(szdest) == 1
-        throw(DimensionMismatch("tried to assign $(szsrc[1]) elements to $(szdest[1]) destinations"))
+        dimerror("tried to assign $(szsrc[1]) elements to $(szdest[1]) destinations")
     else
-        throw(DimensionMismatch("tried to assign $(Base.dims2string(szsrc)) array to $(Base.dims2string(szdest)) destination"))
+        dimerror("tried to assign $(Base.dims2string(szsrc)) array to $(Base.dims2string(szdest)) destination")
     end
 end
 
+
 @inline function viewtype(A::AA, I::II) where {AA<:AbstractArray, II<:Tuple}
     T = Core.Compiler.return_type(view, Tuple{AA,II.parameters...})
-    isconcretetype(T) ? T : _viewtype(A, I)
+    return isconcretetype(T) ? T : _viewtype(A, I)
 end
+
+@inline viewtype(A::AbstractArray, I...) = viewtype(A, I)
 
 @noinline function _viewtype(A::AA, I::II) where {AA<:AbstractArray, II<:Tuple}
     try

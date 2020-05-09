@@ -1,7 +1,7 @@
 name = "SpecialArrays"
 uuid = "dced3ab1-7816-4ad4-9c7c-956aa26e9cbf"
 authors = ["Colin Summers", "The Contributors of SpecialArrays"]
-version = "0.2.1"
+version = "0.3.0"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -12,5 +12,10 @@ UnsafeArrays = "c4a57d5a-5b31-53a6-b365-19f8c011fbd6"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
+Adapt = "1.0"
 Compat = "3.9"
+DocStringExtensions = "0.8"
+Requires = "1.0"
+UnsafeArrays = "1.0"
+Zygote = "0.4"
 julia = "1.3"

@@ -1,15 +1,16 @@
-struct BatchedVector{T,P<:AbstractVector} <: AbstractVector{T} # TODO T<:AbstractVector
+struct BatchedVector{T<:AbstractVector,P<:AbstractVector} <: AbstractVector{T}
     parent::P
     offsets::Vector{Int}
-    @inline function BatchedVector{T,P}(parent, offsets) where {T,P<:AbstractVector}
+    @inline function BatchedVector{T,P}(parent, offsets) where {T<:AbstractVector,P<:AbstractVector}
         check_offsets(parent, offsets)
         new(parent, offsets)
     end
 end
 
-@inline function BatchedVector(parent::AbstractVector, offsets::AbstractVector{<:Integer})
-    T = viewtype(parent, (firstindex(parent):firstindex(parent), ))
-    BatchedVector{T,typeof(parent)}(parent, offsets)
+@inline function BatchedVector(parent::P, offsets::AbstractVector{<:Integer}) where {P<:AbstractVector}
+    i1 = firstindex(parent)
+    T = viewtype(parent, i1:i1)
+    return BatchedVector{T,P}(parent, offsets)
 end
 
 
@@ -17,14 +18,11 @@ end
 #### Core Array Interface
 ####
 
-@inline Base.size(A::BatchedVector) = (length(A), )
+Base.length(A::BatchedVector) = length(A.offsets) - 1
 
-@inline Base.length(A::BatchedVector) = length(A.offsets) - 1
+Base.size(A::BatchedVector) = (length(A), )
 
-
-@propagate_inbounds function Base.getindex(A::BatchedVector, i::Int)
-    return view(A.parent, batchrange(A, i))
-end
+@propagate_inbounds Base.getindex(A::BatchedVector, i::Int) = view(A.parent, batchrange(A, i))
 
 @propagate_inbounds function Base.setindex!(A::BatchedVector, x, i::Int)
     A.parent[batchrange(A, i)] = x
@@ -45,10 +43,6 @@ end
 #### Misc
 ####
 
-@inline function Base.:(==)(A::BatchedVector, B::BatchedVector)
-    A.offsets == B.offsets && A.parent == B.parent
-end
-
 Base.copy(A::BatchedVector) = BatchedVector(copy(A.parent), copy(A.offsets))
 
 Base.dataids(A::BatchedVector) = (Base.dataids(A.parent)..., Base.dataids(A.offsets)...)
@@ -63,35 +57,64 @@ Base.parent(A::BatchedVector) = A.parent
 """
     $(SIGNATURES)
 
-View `A` as a vector of batches where `batch(parent, batch_lengths)[i]` has
+View `A` as a vector of batches where `batch(A, batch_lengths)[i]` has
 length `batch_lengths[i]`.
+
+# Examples
+
+```jldoctest
+julia> A = collect(1:10)
+10-element Array{Int64,1}:
+  1
+  2
+  3
+  4
+  5
+  6
+  7
+  8
+  9
+ 10
+
+julia> B = batch(A, [2, 3, 5])
+3-element BatchedVector{SubArray{Int64,1,Array{Int64,1},Tuple{UnitRange{Int64}},true},Array{Int64,1}}:
+ [1, 2]
+ [3, 4, 5]
+ [6, 7, 8, 9, 10]
+
+julia> B[2] == view(A, 3:5)
+true
+```
 """
-@inline function batch(parent::AbstractVector, batch_lengths::AbstractVector{<:Integer})
+function batch(A::AbstractVector, batch_lengths::AbstractVector{<:Integer})
     offsets = Vector{Int}(undef, length(batch_lengths) + 1)
     offsets[1] = cumsum = 0
     for (i, l) in enumerate(batch_lengths)
         cumsum += l
         offsets[i + 1] = cumsum
     end
-    BatchedVector(parent, offsets)
+    return BatchedVector(A, offsets)
 end
 
 """
     $(SIGNATURES)
 
 View `A` as a vector of batches using the same batch lengths as `B`.
+
+See also: [`batch`](@ref).
 """
-@inline function batchlike(A::AbstractVector, B::BatchedVector)
-    length(A) == length(B.parent) || throw(ArgumentError("length(A) != length(parent(B))"))
-    BatchedVector(A, copy(B.offsets))
+@inline function similarbatch(A::AbstractVector, B::BatchedVector)
+    length(A) == length(B.parent) || argerror("length(A) != length(parent(B))")
+    return BatchedVector(A, copy(B.offsets))
 end
 
 """
-    $(TYPEDSIGNATURES)
+    $(SIGNATURES)
 
 Returns the unbatched parent array wrapped by `B`.
 """
-SpecialArrays.flatview(B::BatchedVector) = B.parent
+SpecialArrays.flatten(B::BatchedVector) = B.parent
+
 
 ####
 #### 3rd Party
@@ -109,17 +132,15 @@ end
 check_offsets(A::BatchedVector) = check_offsets(A.parent, A.offsets)
 
 function check_offsets(parent::AbstractVector, offsets::AbstractVector{<:Integer})
-    length(offsets) >= 1 || throw(ArgumentError("offsets cannot be empty"))
-    first(offsets) == 0 || throw(ArgumentError("First offset is non-zero"))
-    len = 0
+    length(offsets) >= 1 || argerror("offsets cannot be empty")
+    first(offsets) == 0 || argerror("First offset is non-zero")
     for i in LinearIndices(offsets)[2:end]
         o1 = offsets[i-1]
         o2 = offsets[i]
-        o2 > o1 || throw(ArgumentError("Overlapping indices found in offsets"))
-        len += o2 - o1
+        # TODO 0 length slice
+        o2 > o1 || argerror("Overlapping indices found in offsets")
     end
-    if len != length(parent)
-        throw(ArgumentError("Length computed from offsets is not equal to length(parent)"))
-    end
+    # TODO support batching < length(parent)
+    offsets[end] == length(parent) || argerror("offsets[end] does not equal to length(parent)")
     return nothing
 end

@@ -9,7 +9,7 @@ const TEST_ALONGS = [
     (False(), True()),
 ]
 
-function makedata(alongs::TypedBools{L}) where {L}
+function makedata(alongs::NTuple{L,TypedBool}) where {L}
     psize = testdims(L)
     insize = tuple_getindex(psize, alongs)
     outsize = tuple_getindex(psize, invert(alongs))
@@ -48,28 +48,32 @@ showalongs(alongs) = "($(join(map(a -> a === True() ? ':' : '*', alongs), ", "))
     end
 end
 
-@testset "align/flatview" begin
+@testset "align/flatten" begin
     nested = [rand(2) for _=1:3]
     # Because of the splat in the below hcat, gs1 is a tuple-of-vectors, while gs2 is a
     # vector-of-vectors, so we have to convert for the comparison.
     # See also: https://github.com/FluxML/Zygote.jl/pull/501
-    let
+    let # alongs = (:, *)
         gs1 = Zygote.gradient(x -> prod(sum(eachcol(hcat(x...)))), nested)
         gs2 = Zygote.gradient(x -> prod(sum(eachcol(align(x, :, *)))), nested)
-        gs3 = Zygote.gradient(x -> prod(sum(eachcol(flatview(x)))), nested)
+        gs3 = Zygote.gradient(x -> prod(sum(eachcol(flatten(x)))), nested)
         gs1 = Tuple(Array(el) for el in first(gs1))
         gs2 = Tuple(Array(el) for el in first(gs2))
         gs3 = Tuple(Array(el) for el in first(gs3))
         @test gs1 == gs2
         @test gs1 == gs3
     end
-    let
-        # align(A, :, *) == align(A, *, :)
+    let # alongs = (*, :)
         gs1 = Zygote.gradient(x -> prod(sum(eachcol(hcat(x...)'))), nested)
         gs2 = Zygote.gradient(x -> prod(sum(eachcol(align(x, *, :)))), nested)
         gs1 = Tuple(Array(el) for el in first(gs1))
         gs2 = Tuple(Array(el) for el in first(gs2))
         @test gs1 == gs2
+    end
+    let flat = rand(2,3) # flatten(A) = A when A is not a NestedArray
+       gs1 = Zygote.gradient(x -> sum(x), flat)
+       gs2 = Zygote.gradient(x -> sum(flatten(x)), flat)
+       @test gs1 == gs2
     end
 end
 

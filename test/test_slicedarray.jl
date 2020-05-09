@@ -102,14 +102,14 @@ showalongs(alongs) = "($(join(map(a -> a === True() ? ':' : '*', alongs), ", "))
         @test SpecialArrays.align(data.nested, alongs) == data.parent
     end
 
-    @testset "flatview" begin
+    @testset "flatten" begin
         @unpack parent, nested = makedata(V, alongs)
         S = slice(parent, alongs)
         if SpecialArrays.iscontiguous(alongs)
-            @test flatview(S) === S.parent === parent
+            @test flatten(S) === S.parent === parent
         else
             flat = reshape(reduce(hcat, nested), (inner_size(nested)..., size(nested)...))
-            @test flatview(S) == flat
+            @test flatten(S) == flat
         end
     end
 
